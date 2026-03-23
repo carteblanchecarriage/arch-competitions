@@ -362,9 +362,9 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                         <p className="text-sm text-gray-500">
                           by{" "}
                           {winner.submitterSlug ? (
-                            <a href={`/submitters/${winner.submitterSlug}`} className="text-gray-900 underline decoration-gray-300 hover:decoration-gray-900">
+                            <Link href={`/submitters/${winner.submitterSlug}`} className="text-gray-900 underline decoration-gray-300 hover:decoration-gray-900">
                               {winner.designerName}
-                            </a>
+                            </Link>
                           ) : (
                             winner.designerName
                           )}

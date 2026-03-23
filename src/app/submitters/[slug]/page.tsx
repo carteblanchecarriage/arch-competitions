@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getSubmitterBySlug, getAllSubmitterSlugs } from "@/data/submitters";
 import { competitions } from "@/data/competitions";
 import { formatCurrency } from "@/lib/utils";
@@ -111,7 +112,7 @@ export default async function SubmitterProfilePage({
         </h2>
         <div className="mt-4 space-y-4">
           {competitionHistory.map(({ competition, entry }) => (
-            <a
+            <Link
               key={competition.id}
               href={`/competitions/${competition.slug}`}
               className="block overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md"
@@ -167,7 +168,7 @@ export default async function SubmitterProfilePage({
                   </div>
                 </div>
               </div>
-            </a>
+            </Link>
           ))}
           {competitionHistory.length === 0 && (
             <p className="text-sm text-gray-500">
