@@ -4,6 +4,7 @@ import { organizerImages } from "./images";
 export const organizers: Record<string, Organizer> = {
   urbanFutures: {
     id: "org-1",
+    slug: "urban-futures-institute",
     name: "Urban Futures Institute",
     logo: organizerImages.org1.url,
     description:
@@ -15,6 +16,7 @@ export const organizers: Record<string, Organizer> = {
   },
   studioNexus: {
     id: "org-2",
+    slug: "studio-nexus-foundation",
     name: "Studio Nexus Foundation",
     logo: organizerImages.org2.url,
     description:
@@ -26,6 +28,7 @@ export const organizers: Record<string, Organizer> = {
   },
   harbourCity: {
     id: "org-3",
+    slug: "harbour-city-development-authority",
     name: "Harbour City Development Authority",
     logo: organizerImages.org3.url,
     description:
@@ -37,6 +40,7 @@ export const organizers: Record<string, Organizer> = {
   },
   greenBuildAlliance: {
     id: "org-4",
+    slug: "green-build-alliance",
     name: "Green Build Alliance",
     description:
       "International coalition of architects, engineers, and educators working to advance climate-resilient design in underserved communities.",
@@ -46,6 +50,7 @@ export const organizers: Record<string, Organizer> = {
   },
   meridianDev: {
     id: "org-5",
+    slug: "meridian-development-group",
     name: "Meridian Development Group",
     description:
       "Private real estate development firm specializing in mixed-use urban projects across the Eastern Seaboard.",
@@ -55,6 +60,7 @@ export const organizers: Record<string, Organizer> = {
   },
   archFoundation: {
     id: "org-6",
+    slug: "the-architecture-foundation",
     name: "The Architecture Foundation",
     logo: organizerImages.org1.url,
     description:
@@ -66,6 +72,7 @@ export const organizers: Record<string, Organizer> = {
   },
   civicLab: {
     id: "org-7",
+    slug: "civic-design-lab",
     name: "Civic Design Lab",
     description:
       "Municipal design office partnering with communities to reimagine public spaces through participatory design processes.",

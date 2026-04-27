@@ -2,6 +2,7 @@ import { cache } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 import type {
   Competition,
+  CompetitionAttachment,
   Organizer,
   Submitter,
   PrizePool,
@@ -77,6 +78,7 @@ interface CompetitionRow {
   escrow_address: string | null;
   chain_id: number | null;
   prize_share_bps: number[];
+  attachments: CompetitionAttachment[];
   created_at: string;
 }
 
@@ -96,7 +98,8 @@ interface SubmitterRow {
 
 function rowToOrganizer(row: OrganizerRow): Organizer {
   return {
-    id: row.slug, // mock data used slug-as-id; preserve that contract
+    id: row.slug,
+    slug: row.slug,
     name: row.name,
     logo: row.logo ?? undefined,
     description: row.description,
@@ -162,6 +165,7 @@ function rowToCompetition(row: CompetitionRow): Competition {
     escrowAddress: row.escrow_address ?? undefined,
     chainId: row.chain_id ?? undefined,
     prizeShareBps: row.prize_share_bps ?? undefined,
+    attachments: row.attachments ?? [],
     createdAt: row.created_at,
   };
 }
@@ -239,6 +243,24 @@ export const getLastCallCompetitions = cache(async (): Promise<Competition[]> =>
 export const getFeaturedCompetitions = cache(async (): Promise<Competition[]> => {
   const all = await getAllCompetitions();
   return all.filter((c) => c.prizePool.totalAmount >= 10000 || c.prizePool.isOpenPool);
+});
+
+// ─── Organizer queries ───────────────────────────────────────────────
+
+export const getOrganizerBySlug = cache(async (slug: string): Promise<Organizer | undefined> => {
+  const { data, error } = await getSupabase()
+    .from("organizers")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(`getOrganizerBySlug(${slug}): ${error.message}`);
+  if (!data) return undefined;
+  return rowToOrganizer(data as OrganizerRow);
+});
+
+export const getCompetitionsByOrganizer = cache(async (slug: string): Promise<Competition[]> => {
+  const all = await getAllCompetitions();
+  return all.filter((c) => c.organizer.slug === slug);
 });
 
 // ─── Submitter queries ────────────────────────────────────────────────

@@ -39,18 +39,8 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Stay Updated</h3>
             <p className="mt-3 text-sm text-gray-500">
-              Get notified about new competitions and platform updates.
+              Newsletter coming soon. Follow new competitions as they launch.
             </p>
-            <div className="mt-3 flex gap-2">
-              <input
-                type="email"
-                placeholder="your@email.com"
-                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
-              />
-              <button className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800">
-                Subscribe
-              </button>
-            </div>
           </div>
         </div>
 

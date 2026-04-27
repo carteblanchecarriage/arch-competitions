@@ -22,25 +22,54 @@ export function generateMetadata({ params }: { params: Promise<{ slug: string }>
   };
 }
 
+function formatPercent(value: number): string {
+  return value % 1 === 0 ? `${value}%` : `${value.toFixed(1)}%`;
+}
+
 function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
   const { prizePool } = c;
+  const { isOpenPool, totalAmount, platformFeePercent, netToWinners, breakdown } = prizePool;
+
+  // For open pool, breakdown amounts are stored as 0 (pool is variable).
+  // Use prizeShareBps (stored at creation) to show each tier's share of the winner pool.
+  const tierPercents = isOpenPool
+    ? (c.prizeShareBps ?? []).map((bps) => bps / 100)
+    : breakdown.map((b) => (totalAmount > 0 ? (b.amount / totalAmount) * 100 : 0));
+
+  // Sanity check: breakdown should sum to netToWinners (within $1 rounding tolerance).
+  const breakdownSum = breakdown.reduce((sum, b) => sum + b.amount, 0);
+  const breakdownMismatch =
+    totalAmount > 0 && Math.abs(breakdownSum - netToWinners) > 1;
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Prize Pool</h2>
       <div className="mt-2 flex items-baseline gap-2">
         <span className="text-3xl font-bold tracking-tight text-gray-900">
-          {formatCurrency(prizePool.totalAmount)}
+          {isOpenPool ? "Open" : formatCurrency(totalAmount)}
         </span>
-        {prizePool.isOpenPool && (
+        {isOpenPool && (
           <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
             Open Pool
           </span>
         )}
       </div>
 
+      {isOpenPool && (
+        <p className="mt-1 text-xs text-gray-400">
+          Pool grows as contributors add funds. Prize splits are fixed percentages.
+        </p>
+      )}
+
+      {breakdownMismatch && (
+        <div className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          Prize breakdown ({formatCurrency(breakdownSum)}) does not match net to winners ({formatCurrency(netToWinners)}). Check competition data.
+        </div>
+      )}
+
       {/* Breakdown */}
       <div className="mt-4 space-y-2">
-        {prizePool.breakdown.map((b, i) => (
+        {breakdown.map((b, i) => (
           <div key={i} className="flex items-center justify-between text-sm">
             <span className="text-gray-600">
               {b.place}
@@ -48,7 +77,13 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
                 <span className="ml-1 text-gray-400">— {b.recipientName}</span>
               )}
             </span>
-            <span className="font-semibold text-gray-900">{formatCurrency(b.amount)}</span>
+            {isOpenPool ? (
+              <span className="font-semibold text-gray-900">
+                {formatPercent(tierPercents[i])}
+              </span>
+            ) : (
+              <span className="font-semibold text-gray-900">{formatCurrency(b.amount)}</span>
+            )}
           </div>
         ))}
       </div>
@@ -56,14 +91,20 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
       {/* Platform fee transparency */}
       <div className="mt-4 border-t border-gray-100 pt-4">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Platform fee ({prizePool.platformFeePercent}%)</span>
+          <span className="text-gray-500">Platform fee</span>
           <span className="text-gray-500">
-            {formatCurrency(prizePool.totalAmount - prizePool.netToWinners)}
+            {isOpenPool
+              ? formatPercent(platformFeePercent)
+              : formatCurrency(totalAmount - netToWinners)}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm font-semibold">
           <span className="text-gray-900">Net to winners</span>
-          <span className="text-gray-900">{formatCurrency(prizePool.netToWinners)}</span>
+          <span className="text-gray-900">
+            {isOpenPool
+              ? formatPercent(100 - platformFeePercent)
+              : formatCurrency(netToWinners)}
+          </span>
         </div>
       </div>
 
@@ -78,14 +119,14 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
           <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
-          {prizePool.fundingStatus === "paid_out" ? "Paid Out" : "Funded & Escrowed"}
+          {prizePool.fundingStatus === "paid_out" ? "Paid Out" : "Verified & Escrowed"}
         </span>
         {prizePool.paidOutDate && (
           <span className="text-xs text-gray-400">on {formatDate(prizePool.paidOutDate)}</span>
         )}
       </div>
 
-      {prizePool.isOpenPool && (
+      {isOpenPool && (
         <div className="mt-4">
           <div className="text-xs text-gray-500">{prizePool.contributorCount} contributors</div>
           <FundCompetitionPanel escrowAddress={c.escrowAddress} />
@@ -236,6 +277,37 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
               <section>
                 <h2 className="text-lg font-semibold text-gray-900">Site Context</h2>
                 <p className="mt-3 text-sm leading-relaxed text-gray-600">{c.siteContext}</p>
+              </section>
+            )}
+
+            {/* Attachments */}
+            {(c.attachments ?? []).length > 0 && (
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Brief Downloads</h2>
+                <div className="mt-3 space-y-2">
+                  {(c.attachments ?? []).map((file, i) => (
+                    <a
+                      key={i}
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
+                    >
+                      <svg className="h-5 w-5 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="flex-1 font-medium text-gray-900">{file.name}</span>
+                      {file.size && (
+                        <span className="text-xs text-gray-400">
+                          {(file.size / 1024 / 1024).toFixed(1)} MB
+                        </span>
+                      )}
+                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </a>
+                  ))}
+                </div>
               </section>
             )}
 
@@ -434,7 +506,12 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
               <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Organizer</h2>
               <div className="mt-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-900">{c.organizer.name}</span>
+                  <Link
+                    href={`/organizers/${c.organizer.slug}`}
+                    className="font-semibold text-gray-900 hover:underline decoration-gray-300"
+                  >
+                    {c.organizer.name}
+                  </Link>
                   {c.organizer.isVerified && (
                     <svg className="h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />

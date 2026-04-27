@@ -1,17 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { createCompetition, type TierInput } from "@/app/actions/competition";
+import type { CompetitionAttachment } from "@/data/types";
+
+const PLATFORM_FEE = 5;
 
 const STEPS = [
-  { id: 1, title: "Basics", description: "Title, type, and category" },
+  { id: 1, title: "Basics", description: "Title, type, and location" },
   { id: 2, title: "Brief", description: "Your competition brief" },
-  { id: 3, title: "Jury & Criteria", description: "Who judges and how" },
-  { id: 4, title: "Prize Pool", description: "Fund your competition" },
-  { id: 5, title: "Timeline", description: "Deadlines and deliverables" },
-  { id: 6, title: "Rights & IP", description: "Protect designers" },
-  { id: 7, title: "Review", description: "Preview and publish" },
+  { id: 3, title: "Prize Pool", description: "Structure the prize" },
+  { id: 4, title: "Timeline", description: "Registration and submission deadlines" },
+  { id: 5, title: "Rights & IP", description: "Protect designers" },
+  { id: 6, title: "Review", description: "Preview and publish" },
 ];
 
 const COMPETITION_TYPES = [
@@ -26,57 +31,121 @@ const IP_OPTIONS = [
   {
     value: "retain_all",
     label: "Designers retain all rights",
-    description: "Organizer may display entries for competition exhibition purposes only.",
-    recommended: true,
+    description: "Organizer may display entries for exhibition purposes only.",
     warningLevel: "none" as const,
+    recommended: true,
   },
   {
     value: "non_exclusive_license",
     label: "Non-exclusive license",
-    description: "Organizer gets limited usage rights for a specific purpose. Designer keeps ownership.",
-    recommended: false,
+    description: "Organizer gets limited usage rights. Designer keeps ownership.",
     warningLevel: "info" as const,
+    recommended: false,
   },
   {
     value: "winning_license",
     label: "Winning entry license",
-    description: "Only the winning design grants specific rights. All other submissions remain fully owned by designers.",
-    recommended: false,
+    description: "Only the winning design grants specific rights. All other entries remain fully owned by designers.",
     warningLevel: "info" as const,
+    recommended: false,
   },
   {
     value: "winning_transfer",
     label: "Full transfer (winning entry only)",
-    description: "Ownership of winning design transfers to organizer. This should be reflected in the prize amount.",
-    recommended: false,
+    description: "Ownership of winning design transfers to organizer. Must be reflected in prize value.",
     warningLevel: "caution" as const,
+    recommended: false,
   },
 ];
 
-function StepBasics() {
+const DEFAULT_TIERS: TierInput[] = [
+  { place: "1st Place", percent: 60 },
+  { place: "2nd Place", percent: 30 },
+  { place: "3rd Place", percent: 10 },
+];
+
+interface FormState {
+  // Basics
+  title: string;
+  type: string;
+  shortDescription: string;
+  location: string;
+  heroImageUrl: string;
+  // Brief
+  brief: string;
+  designObjectives: string[];
+  siteContext: string;
+  attachments: CompetitionAttachment[];
+  // Prize
+  isOpenPool: boolean;
+  totalAmount: string;
+  tiers: TierInput[];
+  // Timeline
+  registrationDeadline: string;
+  submissionDeadline: string;
+  // Rights
+  ipTermsType: string;
+}
+
+function blankForm(): FormState {
+  return {
+    title: "",
+    type: "open",
+    shortDescription: "",
+    location: "",
+    heroImageUrl: "",
+    brief: "",
+    designObjectives: ["", "", ""],
+    siteContext: "",
+    attachments: [],
+    isOpenPool: false,
+    totalAmount: "",
+    tiers: DEFAULT_TIERS,
+    registrationDeadline: "",
+    submissionDeadline: "",
+    ipTermsType: "retain_all",
+  };
+}
+
+// ── Step components ────────────────────────────────────────────────────────
+
+function StepBasics({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Competition Title</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Competition Title <span className="text-red-500">*</span>
+        </label>
         <input
           type="text"
+          value={form.title}
+          onChange={(e) => set({ title: e.target.value })}
           placeholder="e.g., Reimagining Public Housing"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
         />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700">Competition Type</label>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          {COMPETITION_TYPES.map((type) => (
+          {COMPETITION_TYPES.map((t) => (
             <label
-              key={type.value}
-              className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 hover:border-gray-300"
+              key={t.value}
+              className={cn(
+                "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
+                form.type === t.value ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"
+              )}
             >
-              <input type="radio" name="type" className="mt-1 border-gray-300 text-gray-900 focus:ring-gray-400" />
+              <input
+                type="radio"
+                name="type"
+                checked={form.type === t.value}
+                onChange={() => set({ type: t.value })}
+                className="mt-1 border-gray-300 text-gray-900 focus:ring-gray-400"
+              />
               <div>
-                <div className="text-sm font-medium text-gray-900">{type.label}</div>
-                <div className="text-xs text-gray-500">{type.description}</div>
+                <div className="text-sm font-medium text-gray-900">{t.label}</div>
+                <div className="text-xs text-gray-500">{t.description}</div>
               </div>
             </label>
           ))}
@@ -84,11 +153,15 @@ function StepBasics() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Short Description</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Short Description <span className="text-red-500">*</span>
+        </label>
         <textarea
           rows={3}
-          placeholder="One or two sentences summarizing your competition..."
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          value={form.shortDescription}
+          onChange={(e) => set({ shortDescription: e.target.value })}
+          placeholder="One or two sentences summarizing your competition…"
+          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none resize-none"
         />
       </div>
 
@@ -96,21 +169,59 @@ function StepBasics() {
         <label className="block text-sm font-medium text-gray-700">Location</label>
         <input
           type="text"
+          value={form.location}
+          onChange={(e) => set({ location: e.target.value })}
           placeholder="e.g., New York, NY or Global"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Cover Photo</label>
+        <p className="text-xs text-gray-500">
+          Shown as the hero image on your competition page. Landscape, at least 1200px wide.
+        </p>
+        {form.heroImageUrl && (
+          <div className="mt-2 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+            <img
+              src={form.heroImageUrl}
+              alt="Cover preview"
+              className="h-40 w-full object-cover"
+              onError={(e) => (e.currentTarget.style.display = "none")}
+            />
+          </div>
+        )}
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="url"
+            value={form.heroImageUrl}
+            onChange={(e) => set({ heroImageUrl: e.target.value })}
+            placeholder="https://example.com/image.jpg"
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+          />
+        </div>
+        <p className="mt-1 text-xs text-gray-400">Direct image upload coming soon — paste a URL for now.</p>
       </div>
     </div>
   );
 }
 
-function StepBrief() {
+function StepBrief({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
+  function setObjective(i: number, value: string) {
+    const next = [...form.designObjectives];
+    next[i] = value;
+    set({ designObjectives: next });
+  }
+
+  function addObjective() {
+    set({ designObjectives: [...form.designObjectives, ""] });
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg bg-blue-50 p-4">
         <p className="text-sm text-blue-700">
           <strong>Tip:</strong> Great briefs are specific about the challenge but open about the solution.
-          Include enough context for designers to understand the problem deeply, but don&apos;t prescribe the answer.
         </p>
       </div>
 
@@ -118,24 +229,31 @@ function StepBrief() {
         <label className="block text-sm font-medium text-gray-700">Full Brief</label>
         <textarea
           rows={10}
-          placeholder="Describe the challenge, context, and what you're looking for..."
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          value={form.brief}
+          onChange={(e) => set({ brief: e.target.value })}
+          placeholder="Describe the challenge, context, and what you're looking for…"
+          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
         />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700">Design Objectives</label>
-        <p className="text-xs text-gray-500">List the key objectives designers should address</p>
-        {[1, 2, 3].map((i) => (
+        <p className="text-xs text-gray-500">Key objectives designers should address</p>
+        {form.designObjectives.map((obj, i) => (
           <input
             key={i}
             type="text"
-            placeholder={`Objective ${i}`}
-            className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+            value={obj}
+            onChange={(e) => setObjective(i, e.target.value)}
+            placeholder={`Objective ${i + 1}`}
+            className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
           />
         ))}
-        <button className="mt-2 text-sm font-medium text-gray-600 hover:text-gray-900">
-          + Add another objective
+        <button
+          onClick={addObjective}
+          className="mt-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+        >
+          + Add objective
         </button>
       </div>
 
@@ -143,194 +261,221 @@ function StepBrief() {
         <label className="block text-sm font-medium text-gray-700">Site Context</label>
         <textarea
           rows={3}
-          placeholder="Describe the site, constraints, and physical context (or 'Conceptual' for ideas competitions)..."
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          value={form.siteContext}
+          onChange={(e) => set({ siteContext: e.target.value })}
+          placeholder="Describe the site and physical context (or leave blank for ideas competitions)…"
+          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none resize-none"
         />
       </div>
-    </div>
-  );
-}
 
-function StepJury() {
-  return (
-    <div className="space-y-6">
-      <div className="rounded-lg bg-blue-50 p-4">
-        <p className="text-sm text-blue-700">
-          <strong>Did you know?</strong> Competitions with 3+ jury members attract 2x more submissions.
-          Named jury members with public bios build trust with potential submitters.
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Brief Attachments</label>
+        <p className="text-xs text-gray-500">
+          PDF briefs, site drawings, CAD files, Rhino models, reference images — anything participants need.
         </p>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-700">Jury Members</h3>
-        <div className="mt-3 rounded-lg border border-gray-200 p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input placeholder="Name" className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" />
-            <input placeholder="Title" className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" />
-            <input placeholder="Organization" className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" />
-            <input placeholder="Photo URL" className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" />
-          </div>
-          <textarea
-            rows={2}
-            placeholder="Short bio..."
-            className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-          />
+        <div className="mt-3 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+          <svg className="mx-auto h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p className="mt-2 text-sm font-medium text-gray-500">File upload coming soon</p>
+          <p className="text-xs text-gray-400">Supports PDF, DWG, DXF, 3DM, SKP, images, and more</p>
         </div>
-        <button className="mt-3 text-sm font-medium text-gray-600 hover:text-gray-900">
-          + Add jury member
-        </button>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-700">Evaluation Criteria</h3>
-        <p className="text-xs text-gray-500">Define how submissions will be judged (weights must total 100%)</p>
-        <div className="mt-3 space-y-3">
-          {["Design Innovation", "Feasibility", "Sustainability"].map((name, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <input
-                defaultValue={name}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-              />
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  defaultValue={i === 0 ? 40 : i === 1 ? 35 : 25}
-                  className="w-16 rounded-lg border border-gray-300 px-2 py-2 text-center text-sm focus:border-gray-400 focus:outline-none"
-                />
-                <span className="text-sm text-gray-400">%</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <button className="mt-3 text-sm font-medium text-gray-600 hover:text-gray-900">
-          + Add criterion
-        </button>
       </div>
     </div>
   );
 }
 
-function StepPrizePool() {
+function StepPrize({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
+  const tierSum = form.tiers.reduce((s, t) => s + (Number(t.percent) || 0), 0);
+  const tierValid = Math.abs(tierSum - 100) < 0.01;
+  const netPercent = 100 - PLATFORM_FEE;
+
+  function setTier(i: number, patch: Partial<TierInput>) {
+    const next = form.tiers.map((t, idx) => (idx === i ? { ...t, ...patch } : t));
+    set({ tiers: next });
+  }
+
+  function addTier() {
+    set({ tiers: [...form.tiers, { place: `${form.tiers.length + 1}th Place`, percent: 0 }] });
+  }
+
+  function removeTier(i: number) {
+    set({ tiers: form.tiers.filter((_, idx) => idx !== i) });
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Total Prize Pool</label>
-        <p className="text-xs text-gray-500">Minimum $100 — funds are escrowed before the competition goes live</p>
-        <div className="relative mt-1">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-          <input
-            type="number"
-            placeholder="10,000"
-            min={100}
-            className="w-full rounded-lg border border-gray-300 py-2.5 pl-8 pr-4 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
-          />
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-700">Prize Breakdown</h3>
-        <div className="mt-3 space-y-2">
-          {["1st Place", "2nd Place", "3rd Place"].map((place, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <span className="w-24 text-sm text-gray-600">{place}</span>
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                <input
-                  type="number"
-                  placeholder={i === 0 ? "5,000" : i === 1 ? "3,000" : "2,000"}
-                  className="w-full rounded-lg border border-gray-300 py-2 pl-7 pr-3 text-sm focus:border-gray-400 focus:outline-none"
-                />
-              </div>
-            </div>
-          ))}
-          <button className="text-sm font-medium text-gray-600 hover:text-gray-900">
-            + Add honorable mentions
-          </button>
-        </div>
-      </div>
-
-      {/* Platform fee preview */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <h3 className="text-sm font-semibold text-gray-700">Fee Transparency Preview</h3>
-        <div className="mt-2 space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Prize pool</span>
-            <span className="text-gray-900">$10,000</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Platform fee (5%)</span>
-            <span className="text-gray-500">-$500</span>
-          </div>
-          <div className="flex justify-between border-t border-gray-200 pt-1 font-semibold">
-            <span className="text-gray-900">Net to winners</span>
-            <span className="text-gray-900">$9,500</span>
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-gray-400">
-          The 5% fee is only taken at payout. If the competition is cancelled, all funds are returned.
-        </p>
-      </div>
-
-      <div className="flex items-center gap-3 rounded-lg border border-purple-200 bg-purple-50 p-4">
-        <input type="checkbox" className="rounded border-gray-300 text-purple-600 focus:ring-purple-400" />
+      {/* Open pool toggle */}
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 p-4">
+        <input
+          type="checkbox"
+          checked={form.isOpenPool}
+          onChange={(e) => set({ isOpenPool: e.target.checked })}
+          className="mt-0.5 rounded border-purple-300 text-purple-600 focus:ring-purple-400"
+        />
         <div>
           <div className="text-sm font-medium text-purple-900">Enable Open Prize Pool</div>
           <p className="text-xs text-purple-700">
-            Allow anyone to contribute to this competition&apos;s prize fund, making it bigger and attracting more submissions.
+            Anyone can contribute to grow the prize fund. Prize splits stay fixed; amounts scale with the pool.
           </p>
         </div>
+      </label>
+
+      {/* Total amount — only shown for fixed pools */}
+      {!form.isOpenPool && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Total Prize Pool <span className="text-red-500">*</span>
+          </label>
+          <p className="text-xs text-gray-500">Funds are escrowed before the competition goes live</p>
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-gray-400">$</span>
+            <input
+              type="number"
+              value={form.totalAmount}
+              onChange={(e) => set({ totalAmount: e.target.value })}
+              placeholder="10,000"
+              min={100}
+              className="w-full rounded-lg border border-gray-300 py-2.5 pl-8 pr-4 text-sm focus:border-gray-400 focus:outline-none"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Tier splits — always percentages of winner share */}
+      <div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-gray-700">Prize Splits</h3>
+            <p className="text-xs text-gray-500">
+              Percentages of the winner pool (after {PLATFORM_FEE}% platform fee) — must total 100%
+            </p>
+          </div>
+          <span className={cn(
+            "text-sm font-semibold tabular-nums",
+            tierValid ? "text-emerald-600" : "text-red-500"
+          )}>
+            {tierSum.toFixed(tierSum % 1 === 0 ? 0 : 1)}%
+            {tierValid ? " ✓" : ` / 100%`}
+          </span>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {form.tiers.map((tier, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={tier.place}
+                onChange={(e) => setTier(i, { place: e.target.value })}
+                className="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+              />
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  value={tier.percent}
+                  onChange={(e) => setTier(i, { percent: Number(e.target.value) })}
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  className="w-full rounded-lg border border-gray-200 py-2 pl-3 pr-7 text-sm focus:border-gray-400 focus:outline-none"
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-400">%</span>
+              </div>
+              {!form.isOpenPool && form.totalAmount && (
+                <span className="w-24 text-right text-xs text-gray-400">
+                  ≈ ${Math.round(Number(form.totalAmount) * (1 - PLATFORM_FEE / 100) * (tier.percent / 100)).toLocaleString()}
+                </span>
+              )}
+              {form.tiers.length > 1 && (
+                <button
+                  onClick={() => removeTier(i)}
+                  className="text-gray-300 hover:text-red-400"
+                  aria-label="Remove tier"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={addTier}
+          className="mt-3 text-sm font-medium text-gray-600 hover:text-gray-900"
+        >
+          + Add tier
+        </button>
       </div>
+
+      {/* Fee transparency */}
+      {!form.isOpenPool && form.totalAmount && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+          <div className="flex justify-between text-gray-600">
+            <span>Prize pool</span>
+            <span>${Number(form.totalAmount).toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-gray-500">
+            <span>Platform fee ({PLATFORM_FEE}%)</span>
+            <span>−${Math.round(Number(form.totalAmount) * PLATFORM_FEE / 100).toLocaleString()}</span>
+          </div>
+          <div className="mt-1 flex justify-between border-t border-gray-200 pt-1 font-semibold">
+            <span>Net to winners</span>
+            <span>${Math.round(Number(form.totalAmount) * netPercent / 100).toLocaleString()}</span>
+          </div>
+          <p className="mt-2 text-xs text-gray-400">
+            Fee is taken at payout only. If cancelled, all funds are returned in full.
+          </p>
+        </div>
+      )}
+
+      {!tierValid && (
+        <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+          Prize splits must total exactly 100%. Currently at {tierSum.toFixed(1)}%.
+        </div>
+      )}
     </div>
   );
 }
 
-function StepTimeline() {
+function StepTimeline({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">Registration Deadline</label>
-          <input type="date" className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none" />
+          <input
+            type="date"
+            value={form.registrationDeadline}
+            onChange={(e) => set({ registrationDeadline: e.target.value })}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+          />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Submission Deadline</label>
-          <input type="date" className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Judging Period Starts</label>
-          <input type="date" className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Announcement Date</label>
-          <input type="date" className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none" />
+          <label className="block text-sm font-medium text-gray-700">
+            Submission Deadline <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            value={form.submissionDeadline}
+            onChange={(e) => set({ submissionDeadline: e.target.value })}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+          />
         </div>
       </div>
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-700">Deliverables</h3>
-        <p className="text-xs text-gray-500">What should submitters provide?</p>
-        <div className="mt-3 rounded-lg border border-gray-200 p-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <input placeholder="Type (e.g., Presentation Board)" className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" />
-            <input placeholder="Format (e.g., PDF)" className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" />
-            <input placeholder="Max size (e.g., 50MB)" className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none" />
-          </div>
-        </div>
-        <button className="mt-3 text-sm font-medium text-gray-600 hover:text-gray-900">
-          + Add deliverable
-        </button>
-      </div>
+      <p className="text-xs text-gray-400">
+        Judging and announcement dates can be added after the competition goes live.
+      </p>
     </div>
   );
 }
 
-function StepRights() {
+function StepRights({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
   return (
     <div className="space-y-6">
       <div className="rounded-lg bg-emerald-50 p-4">
         <p className="text-sm text-emerald-800">
-          <strong>Our platform default:</strong> Designers retain all rights.
-          We believe the people who create the ideas should own them. You can choose other options, but we encourage keeping the default.
+          <strong>Our default:</strong> Designers retain all rights.
+          We believe creators should own their ideas.
         </p>
       </div>
 
@@ -339,16 +484,18 @@ function StepRights() {
           <label
             key={option.value}
             className={cn(
-              "flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-gray-50",
-              option.warningLevel === "none" && "border-emerald-200",
-              option.warningLevel === "info" && "border-blue-200",
-              option.warningLevel === "caution" && "border-amber-200",
+              "flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+              form.ipTermsType === option.value ? "border-gray-900 bg-gray-50" : "hover:bg-gray-50",
+              option.warningLevel === "none" && form.ipTermsType !== option.value && "border-emerald-200",
+              option.warningLevel === "info" && form.ipTermsType !== option.value && "border-blue-200",
+              option.warningLevel === "caution" && form.ipTermsType !== option.value && "border-amber-200",
             )}
           >
             <input
               type="radio"
               name="ip"
-              defaultChecked={option.recommended}
+              checked={form.ipTermsType === option.value}
+              onChange={() => set({ ipTermsType: option.value })}
               className="mt-0.5 border-gray-300 text-gray-900 focus:ring-gray-400"
             />
             <div>
@@ -370,100 +517,184 @@ function StepRights() {
           </label>
         ))}
       </div>
-
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <p className="text-xs text-gray-500">
-          <strong>Note:</strong> This platform does not allow terms that claim rights over all submissions.
-          You may negotiate rights for the winning entry only. IP terms are locked once the competition goes live
-          and cannot be changed after designers have started working.
-        </p>
-      </div>
     </div>
   );
 }
 
-function StepReview() {
+function StepReview({
+  form,
+  onSubmit,
+  isPending,
+  error,
+}: {
+  form: FormState;
+  onSubmit: () => void;
+  isPending: boolean;
+  error: string | null;
+}) {
+  const tierSum = form.tiers.reduce((s, t) => s + (Number(t.percent) || 0), 0);
+  const tierValid = Math.abs(tierSum - 100) < 0.01;
+
+  const checks = [
+    { label: "Competition title", ok: !!form.title },
+    { label: "Short description", ok: !!form.shortDescription },
+    { label: "Submission deadline", ok: !!form.submissionDeadline },
+    { label: "Prize splits total 100%", ok: tierValid },
+    { label: "Fixed pool amount set", ok: form.isOpenPool || !!form.totalAmount },
+    { label: "IP terms selected", ok: !!form.ipTermsType },
+  ];
+
+  const allGood = checks.every((c) => c.ok);
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
-        <svg className="mx-auto h-12 w-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <h3 className="mt-3 text-lg font-semibold text-emerald-900">Ready to Preview</h3>
-        <p className="mt-1 text-sm text-emerald-700">
-          Review your competition below. Once you fund the prize pool, your competition will go live.
-        </p>
-      </div>
-
-      {/* Preview checklist */}
       <div className="rounded-lg border border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-700">Publication Checklist</h3>
+        <h3 className="text-sm font-semibold text-gray-700">Checklist</h3>
         <div className="mt-3 space-y-2">
-          {[
-            "Competition title and type",
-            "Full brief with design objectives",
-            "At least 1 jury member",
-            "Evaluation criteria (weights total 100%)",
-            "Prize pool funded ($100 minimum)",
-            "Timeline with all key dates",
-            "Deliverables specified",
-            "IP terms selected",
-          ].map((item, i) => (
+          {checks.map((item, i) => (
             <div key={i} className="flex items-center gap-2 text-sm">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100">
-                <svg className="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+              <div className={cn(
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                item.ok ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-500"
+              )}>
+                {item.ok ? (
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                )}
               </div>
-              <span className="text-gray-600">{item}</span>
+              <span className={item.ok ? "text-gray-700" : "text-red-600"}>{item.label}</span>
             </div>
           ))}
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+      )}
+
       <div className="text-center">
-        <Button size="lg" disabled className="w-full sm:w-auto">
-          Fund Prize Pool & Publish (Coming Soon)
+        <Button
+          size="lg"
+          onClick={onSubmit}
+          disabled={!allGood || isPending}
+          className="w-full sm:w-auto"
+        >
+          {isPending ? "Creating competition…" : form.isOpenPool ? "Publish (Open Pool)" : "Publish Competition"}
         </Button>
         <p className="mt-2 text-xs text-gray-400">
-          Prize funds are escrowed and only released to winners upon completion
+          {form.isOpenPool
+            ? "An escrow is deployed and your competition goes live immediately."
+            : "Your competition goes live. You'll fund the prize pool from your wallet next."}
         </p>
       </div>
     </div>
   );
 }
 
-const STEP_COMPONENTS = [StepBasics, StepBrief, StepJury, StepPrizePool, StepTimeline, StepRights, StepReview];
+// ── Main page ──────────────────────────────────────────────────────────────
 
 export default function CreatePage() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const StepComponent = STEP_COMPONENTS[currentStep];
+  const router = useRouter();
+  const { ready, authenticated, login, getAccessToken } = usePrivy();
+  const [step, setStep] = useState(0);
+  const [form, setFormRaw] = useState<FormState>(blankForm());
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function set(patch: Partial<FormState>) {
+    setFormRaw((f) => ({ ...f, ...patch }));
+  }
+
+  function handleSubmit() {
+    setSubmitError(null);
+    startTransition(async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          login();
+          return;
+        }
+        const { slug } = await createCompetition(token, {
+          title: form.title,
+          type: form.type,
+          shortDescription: form.shortDescription,
+          location: form.location,
+          heroImageUrl: form.heroImageUrl,
+          brief: form.brief,
+          designObjectives: form.designObjectives,
+          siteContext: form.siteContext,
+          registrationDeadline: form.registrationDeadline,
+          submissionDeadline: form.submissionDeadline,
+          isOpenPool: form.isOpenPool,
+          totalAmount: Number(form.totalAmount) || 0,
+          tiers: form.tiers,
+          ipTermsType: form.ipTermsType,
+          attachments: form.attachments,
+        });
+        router.push(`/competitions/${slug}`);
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e.message : String(e));
+      }
+    });
+  }
+
+  // ── Auth gate — block form until Privy is ready and user is signed in ───
+  if (!ready) {
+    return (
+      <main className="mx-auto max-w-md px-4 py-24 text-center sm:px-6">
+        <div className="mx-auto h-8 w-48 animate-pulse rounded-lg bg-gray-100" />
+      </main>
+    );
+  }
+
+  if (!authenticated) {
+    return (
+      <main className="mx-auto max-w-md px-4 py-24 text-center sm:px-6">
+        <h1 className="text-2xl font-bold text-gray-900">Create a Competition</h1>
+        <p className="mt-3 text-gray-500">Sign in to publish a competition.</p>
+        <Button onClick={login} className="mt-6">Sign in</Button>
+      </main>
+    );
+  }
+
+  const stepProps = { form, set };
+  const stepComponents = [
+    <StepBasics key="basics" {...stepProps} />,
+    <StepBrief key="brief" {...stepProps} />,
+    <StepPrize key="prize" {...stepProps} />,
+    <StepTimeline key="timeline" {...stepProps} />,
+    <StepRights key="rights" {...stepProps} />,
+    <StepReview key="review" form={form} onSubmit={handleSubmit} isPending={isPending} error={submitError} />,
+  ];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create a Competition</h1>
-        <p className="mt-1 text-gray-500">
-          Free to create. Fund your prize pool and let the ideas flow.
-        </p>
+        <p className="mt-1 text-gray-500">Free to create. Fund your prize pool and let the ideas flow.</p>
       </div>
 
       {/* Stepper */}
       <nav className="mb-8 overflow-x-auto">
         <ol className="flex min-w-max gap-1">
-          {STEPS.map((step, i) => (
-            <li key={step.id} className="flex-1">
+          {STEPS.map((s, i) => (
+            <li key={s.id} className="flex-1">
               <button
-                onClick={() => setCurrentStep(i)}
+                onClick={() => setStep(i)}
                 className={cn(
                   "flex w-full flex-col rounded-lg border px-3 py-2 text-left transition-colors",
-                  i === currentStep
+                  i === step
                     ? "border-gray-900 bg-gray-900 text-white"
                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                 )}
               >
-                <span className="text-xs font-medium opacity-70">Step {step.id}</span>
-                <span className="text-sm font-semibold">{step.title}</span>
+                <span className="text-xs font-medium opacity-70">Step {s.id}</span>
+                <span className="text-sm font-semibold">{s.title}</span>
               </button>
             </li>
           ))}
@@ -472,26 +703,25 @@ export default function CreatePage() {
 
       {/* Step content */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 sm:p-8">
-        <h2 className="mb-1 text-lg font-semibold text-gray-900">{STEPS[currentStep].title}</h2>
-        <p className="mb-6 text-sm text-gray-500">{STEPS[currentStep].description}</p>
-        <StepComponent />
+        <h2 className="mb-1 text-lg font-semibold text-gray-900">{STEPS[step].title}</h2>
+        <p className="mb-6 text-sm text-gray-500">{STEPS[step].description}</p>
+        {stepComponents[step]}
       </div>
 
       {/* Navigation */}
       <div className="mt-6 flex justify-between">
         <Button
           variant="ghost"
-          onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-          disabled={currentStep === 0}
+          onClick={() => setStep(Math.max(0, step - 1))}
+          disabled={step === 0}
         >
-          &larr; Previous
+          ← Previous
         </Button>
-        <Button
-          onClick={() => setCurrentStep(Math.min(STEPS.length - 1, currentStep + 1))}
-          disabled={currentStep === STEPS.length - 1}
-        >
-          Next &rarr;
-        </Button>
+        {step < STEPS.length - 1 && (
+          <Button onClick={() => setStep(step + 1)}>
+            Next →
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -37,12 +37,13 @@ export interface PrizePool {
   contributorCount: number;
   platformFeePercent: number;
   netToWinners: number;
-  fundingStatus: "funded" | "partially_funded" | "paid_out";
+  fundingStatus: "unfunded" | "funded" | "partially_funded" | "paid_out";
   paidOutDate?: string;
 }
 
 export interface Organizer {
   id: string;
+  slug: string;
   name: string;
   logo?: string;
   description: string;
@@ -125,12 +126,20 @@ export interface LifecycleUpdate {
   newStatus?: CompetitionStatus;
 }
 
+export interface CompetitionAttachment {
+  name: string;
+  url: string;
+  size?: number;
+  mimeType?: string;
+}
+
 export interface Competition {
   id: string;
   slug: string;
   escrowAddress?: string;
   chainId?: number;
   prizeShareBps?: number[];
+  attachments?: CompetitionAttachment[];
   title: string;
   shortDescription: string;
   brief: string;
