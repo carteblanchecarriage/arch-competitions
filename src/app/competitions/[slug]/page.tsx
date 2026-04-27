@@ -30,10 +30,17 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
   const { prizePool } = c;
   const { isOpenPool, totalAmount, platformFeePercent, netToWinners, breakdown } = prizePool;
 
-  // For open pool, breakdown amounts are stored as 0 (pool is variable).
-  // Use prizeShareBps (stored at creation) to show each tier's share of the winner pool.
+  // For open pool, show each tier's share of the winner pool.
+  // Prefer prizeShareBps (set at creation); fall back to breakdown amounts or equal split.
   const tierPercents = isOpenPool
-    ? (c.prizeShareBps ?? []).map((bps) => bps / 100)
+    ? (c.prizeShareBps?.length
+        ? c.prizeShareBps.map((bps) => bps / 100)
+        : (() => {
+            const total = breakdown.reduce((s, b) => s + b.amount, 0);
+            return breakdown.map((b) =>
+              total > 0 ? (b.amount / total) * 100 : 100 / breakdown.length
+            );
+          })())
     : breakdown.map((b) => (totalAmount > 0 ? (b.amount / totalAmount) * 100 : 0));
 
   // Sanity check: breakdown should sum to netToWinners (within $1 rounding tolerance).
