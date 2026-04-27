@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { competitions, getCompetitionBySlug, getAllSlugs } from "@/data/competitions";
+import { getCompetitionBySlug, getAllSlugs } from "@/data/db";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
@@ -8,9 +8,11 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { TYPE_LABELS, ELIGIBILITY_LABELS, STATUS_CONFIG } from "@/lib/constants";
 import { formatCurrency, formatDate, formatDeadline, daysUntil, cn } from "@/lib/utils";
 import type { Competition } from "@/data/types";
+import { FundCompetitionPanel } from "@/components/detail/FundCompetitionPanel";
 
-export function generateStaticParams() {
-  return getAllSlugs().map((slug) => ({ slug }));
+export async function generateStaticParams() {
+  const slugs = await getAllSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -86,9 +88,7 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
       {prizePool.isOpenPool && (
         <div className="mt-4">
           <div className="text-xs text-gray-500">{prizePool.contributorCount} contributors</div>
-          <Button className="mt-2 w-full" variant="outline" disabled>
-            Fund this Competition (Coming Soon)
-          </Button>
+          <FundCompetitionPanel escrowAddress={c.escrowAddress} />
         </div>
       )}
     </div>
@@ -147,7 +147,7 @@ function TimelineVisual({ competition: c }: { competition: Competition }) {
 
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const competition = getCompetitionBySlug(slug);
+  const competition = await getCompetitionBySlug(slug);
 
   if (!competition) {
     notFound();

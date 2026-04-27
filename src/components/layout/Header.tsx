@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { AuthButton } from "@/components/auth/AuthButton";
 
 const NAV_ITEMS = [
   { label: "Competitions", href: "/competitions" },
@@ -36,6 +37,9 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <div className="ml-3 border-l border-gray-200 pl-3">
+            <AuthButton />
+          </div>
         </nav>
 
         {/* Mobile hamburger */}
@@ -77,6 +81,9 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <div className="mt-2 border-t border-gray-200 px-3 pt-3">
+            <AuthButton />
+          </div>
         </nav>
       </div>
     </header>

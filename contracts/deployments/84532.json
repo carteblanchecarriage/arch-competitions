@@ -1,0 +1,7 @@
+{
+  "chainId": 84532,
+  "factory": "0x40d2C45DD11d9Ed411f50758105387476A848D72",
+  "feeBps": 500,
+  "feeRecipient": "0x95cF119BD27df60e5efF2C7Ae16069CD90084e2F",
+  "implementation": "0x7Eb9b760bB74Da61649B876da5e15F19664933f0"
+}

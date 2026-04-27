@@ -1,13 +1,18 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getSubmitterBySlug, getAllSubmitterSlugs } from "@/data/submitters";
-import { competitions } from "@/data/competitions";
+import {
+  getSubmitterBySlug,
+  getAllSubmitterSlugs,
+  getAllCompetitions,
+} from "@/data/db";
 import { formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tag } from "@/components/ui/Tag";
+import { EditProfileButton } from "@/components/auth/EditProfileButton";
 
-export function generateStaticParams() {
-  return getAllSubmitterSlugs().map((slug) => ({ slug }));
+export async function generateStaticParams() {
+  const slugs = await getAllSubmitterSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export function generateMetadata() {
@@ -22,7 +27,10 @@ export default async function SubmitterProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const submitter = getSubmitterBySlug(slug);
+  const [submitter, competitions] = await Promise.all([
+    getSubmitterBySlug(slug),
+    getAllCompetitions(),
+  ]);
   if (!submitter) notFound();
 
   // Find competitions this submitter has won or been involved in
@@ -54,10 +62,11 @@ export default async function SubmitterProfilePage({
           />
         )}
         <div className="flex-1">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900">
               {submitter.name}
             </h1>
+            <EditProfileButton slug={submitter.slug} />
             <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 capitalize">
               {submitter.type}
             </span>

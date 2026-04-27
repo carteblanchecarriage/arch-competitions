@@ -128,6 +128,9 @@ export interface LifecycleUpdate {
 export interface Competition {
   id: string;
   slug: string;
+  escrowAddress?: string;
+  chainId?: number;
+  prizeShareBps?: number[];
   title: string;
   shortDescription: string;
   brief: string;

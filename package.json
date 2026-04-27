@@ -7,25 +7,40 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "wagmi:gen": "wagmi generate",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test",
+    "seed": "tsx scripts/seed-supabase.ts",
+    "deploy:escrows": "tsx scripts/deploy-escrows.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@privy-io/react-auth": "^3.18.0",
+    "@privy-io/server-auth": "^1.32.5",
+    "@privy-io/wagmi": "^4.0.6",
+    "@supabase/supabase-js": "^2.104.1",
+    "@tanstack/react-query": "^5.100.5",
     "next": "^16.2.1",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "viem": "^2.48.4",
+    "wagmi": "^3.6.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@wagmi/cli": "^2.10.0",
+    "dotenv": "^17.4.2",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.1",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

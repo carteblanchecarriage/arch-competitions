@@ -1,20 +1,27 @@
 import Link from "next/link";
-import { competitions, getLastCallCompetitions, getFeaturedCompetitions } from "@/data/competitions";
+import {
+  getAllCompetitions,
+  getLastCallCompetitions,
+  getFeaturedCompetitions,
+} from "@/data/db";
 import { CompetitionCard } from "@/components/competitions/CompetitionCard";
 import { CompetitionGrid } from "@/components/competitions/CompetitionGrid";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
 
-const stats = {
-  competitions: competitions.length,
-  totalPrizes: competitions.reduce((sum, c) => sum + c.prizePool.totalAmount, 0),
-  payoutRate: 100,
-  countries: 38,
-};
+export default async function Home() {
+  const [competitions, lastCall, featured] = await Promise.all([
+    getAllCompetitions(),
+    getLastCallCompetitions(),
+    getFeaturedCompetitions(),
+  ]);
 
-export default function Home() {
-  const lastCall = getLastCallCompetitions();
-  const featured = getFeaturedCompetitions();
+  const stats = {
+    competitions: competitions.length,
+    totalPrizes: competitions.reduce((sum, c) => sum + c.prizePool.totalAmount, 0),
+    payoutRate: 100,
+    countries: 38,
+  };
 
   return (
     <>
