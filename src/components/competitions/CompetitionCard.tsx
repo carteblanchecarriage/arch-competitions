@@ -3,7 +3,7 @@ import type { Competition } from "@/data/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tag } from "@/components/ui/Tag";
 import { TYPE_LABELS, ELIGIBILITY_LABELS } from "@/lib/constants";
-import { formatCurrency, formatDeadline, isUrgent, cn } from "@/lib/utils";
+import { formatCurrency, formatDeadline, daysUntil, isUrgent, cn } from "@/lib/utils";
 
 interface CompetitionCardProps {
   competition: Competition;
@@ -21,7 +21,7 @@ export function CompetitionCard({ competition: c, compact }: CompetitionCardProp
       >
         <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg">
           <img
-            src={c.thumbnailImage}
+            src={c.thumbnailImage || c.heroImage}
             alt={c.title}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
@@ -56,7 +56,7 @@ export function CompetitionCard({ competition: c, compact }: CompetitionCardProp
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
-          src={c.thumbnailImage}
+          src={c.thumbnailImage || c.heroImage}
           alt={c.title}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
@@ -68,6 +68,22 @@ export function CompetitionCard({ competition: c, compact }: CompetitionCardProp
             Open Pool
           </div>
         )}
+        {c.status === "open" && (() => {
+          const days = daysUntil(c.submissionDeadline);
+          if (days < 0 || days > 14) return null;
+          return (
+            <div className="absolute bottom-3 left-3">
+              <span className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-semibold",
+                days <= 7
+                  ? "bg-red-600 text-white"
+                  : "bg-white/90 text-gray-900 backdrop-blur"
+              )}>
+                {formatDeadline(c.submissionDeadline)}
+              </span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Content */}

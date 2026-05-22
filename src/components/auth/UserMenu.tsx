@@ -3,13 +3,29 @@
 import { usePrivy } from "@privy-io/react-auth";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { getProfile } from "@/app/actions/profile";
 
 export function UserMenu() {
-  const { user, logout } = usePrivy();
+  const { user, logout, getAccessToken } = usePrivy();
   const [open, setOpen] = useState(false);
+  const [profileSlug, setProfileSlug] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const email = user?.email?.address ?? "Account";
+
+  // Fetch slug once so the profile link goes to the public page
+  useEffect(() => {
+    getAccessToken().then(async (token) => {
+      if (!token) return;
+      try {
+        const row = await getProfile(token);
+        if (row?.slug) setProfileSlug(row.slug);
+      } catch {
+        // silently ignore — link falls back to /account
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -22,6 +38,8 @@ export function UserMenu() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [open]);
+
+  const close = () => setOpen(false);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -43,18 +61,22 @@ export function UserMenu() {
       {open && (
         <div className="absolute right-0 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
           <Link
-            href="/account"
-            onClick={() => setOpen(false)}
+            href={profileSlug ? `/submitters/${profileSlug}` : "/account"}
+            onClick={close}
             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
           >
             My Profile
           </Link>
+          <Link
+            href="/account?edit=true"
+            onClick={close}
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            Edit Profile
+          </Link>
           <div className="my-1 border-t border-gray-100" />
           <button
-            onClick={() => {
-              logout();
-              setOpen(false);
-            }}
+            onClick={() => { logout(); close(); }}
             className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
           >
             Sign Out

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getCompetitionBySlug, getAllSlugs } from "@/data/db";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tag } from "@/components/ui/Tag";
@@ -9,9 +10,10 @@ import { TYPE_LABELS, ELIGIBILITY_LABELS, STATUS_CONFIG } from "@/lib/constants"
 import { formatCurrency, formatDate, formatDeadline, daysUntil, cn } from "@/lib/utils";
 import type { Competition } from "@/data/types";
 import { FundCompetitionPanel } from "@/components/detail/FundCompetitionPanel";
+import { ShareButton } from "@/components/ui/ShareButton";
 
 export async function generateStaticParams() {
-  const slugs = await getAllSlugs();
+  const slugs = await getAllSlugs().catch(() => [] as string[]);
   return slugs.map((slug) => ({ slug }));
 }
 
@@ -34,7 +36,7 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
   // Prefer prizeShareBps (set at creation); fall back to breakdown amounts or equal split.
   const tierPercents = isOpenPool
     ? (c.prizeShareBps?.length
-        ? c.prizeShareBps.map((bps) => bps / 100)
+        ? breakdown.map((_, i) => (c.prizeShareBps![i] ?? 0) / 100)
         : (() => {
             const total = breakdown.reduce((s, b) => s + b.amount, 0);
             return breakdown.map((b) =>
@@ -136,7 +138,7 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
       {isOpenPool && (
         <div className="mt-4">
           <div className="text-xs text-gray-500">{prizePool.contributorCount} contributors</div>
-          <FundCompetitionPanel escrowAddress={c.escrowAddress} />
+          <FundCompetitionPanel escrowAddress={c.escrowAddress} chainId={c.chainId} />
         </div>
       )}
     </div>
@@ -195,7 +197,7 @@ function TimelineVisual({ competition: c }: { competition: Competition }) {
 
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const competition = await getCompetitionBySlug(slug);
+  const competition = await getCompetitionBySlug(slug).catch(() => undefined);
 
   if (!competition) {
     notFound();
@@ -205,6 +207,10 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
   const isOpen = c.status === "open";
   const hasResults = !!c.results;
   const urgent = isOpen && daysUntil(c.submissionDeadline) <= 7;
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "archcompetitions.com";
+  const protocol = host.startsWith("localhost") ? "http" : "https";
+  const shareUrl = `${protocol}://${host}/competitions/${c.slug}`;
 
   return (
     <article>
@@ -217,7 +223,10 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
         />
         <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-          <StatusBadge status={c.status} className="mb-3" />
+          <div className="mb-3 flex items-center gap-3">
+            <StatusBadge status={c.status} />
+            <ShareButton url={shareUrl} />
+          </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl">{c.title}</h1>
           <p className="mt-2 max-w-2xl text-gray-300">{c.shortDescription}</p>
         </div>
@@ -319,27 +328,44 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             )}
 
             {/* Jury */}
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900">Jury</h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {c.jury.map((member, i) => (
-                  <div key={i} className="flex gap-3 rounded-lg border border-gray-100 p-3">
-                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-200">
-                      {member.photo && (
-                        <img src={member.photo} alt={member.name} className="h-full w-full object-cover" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">{member.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {member.title}, {member.organization}
+            {c.jury.length > 0 && (
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Jury</h2>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {c.jury.map((member, i) => (
+                    <div key={i} className="flex gap-3 rounded-lg border border-gray-100 p-3">
+                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-200">
+                        {member.photo ? (
+                          <img src={member.photo} alt={member.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-base font-bold text-gray-400">
+                            {member.name.charAt(0)}
+                          </div>
+                        )}
                       </div>
-                      <p className="mt-1 text-xs text-gray-400">{member.bio}</p>
+                      <div>
+                        {member.submitterSlug ? (
+                          <Link
+                            href={`/submitters/${member.submitterSlug}`}
+                            className="text-sm font-semibold text-gray-900 hover:underline decoration-gray-300"
+                          >
+                            {member.name}
+                          </Link>
+                        ) : (
+                          <div className="text-sm font-semibold text-gray-900">{member.name}</div>
+                        )}
+                        {(member.title || member.organization) && (
+                          <div className="text-xs text-gray-500">
+                            {[member.title, member.organization].filter(Boolean).join(", ")}
+                          </div>
+                        )}
+                        <p className="mt-1 text-xs text-gray-400">{member.bio}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Evaluation Criteria */}
             <section>
@@ -493,12 +519,28 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
 
           {/* Sidebar */}
           <aside className="w-full flex-shrink-0 space-y-6 lg:w-80">
+            {/* Draft banner */}
+            {c.status === "draft" && (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+                <p className="font-semibold text-gray-800">This competition is not live yet.</p>
+                <p className="mt-1">Fund the escrow from your organizer dashboard, then publish to open submissions.</p>
+                <Link
+                  href={`/organizers/${c.organizer.slug}/dashboard`}
+                  className="mt-2 inline-block text-xs font-medium text-gray-900 underline decoration-gray-400 hover:decoration-gray-700"
+                >
+                  Go to dashboard →
+                </Link>
+              </div>
+            )}
+
             {/* Actions */}
             {isOpen && (
               <div className="rounded-xl border border-gray-200 bg-white p-4">
-                <Button className="w-full" size="lg" disabled>
-                  Submit Entry (Coming Soon)
-                </Button>
+                <Link href={`/competitions/${c.slug}/submit`} className="block">
+                  <Button className="w-full" size="lg">
+                    Submit entry
+                  </Button>
+                </Link>
                 <p className="mt-2 text-center text-xs text-gray-400">
                   Free to submit, always
                 </p>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import { createCompetition, type TierInput } from "@/app/actions/competition";
+import { createCompetition, type TierInput, type JuryInput } from "@/app/actions/competition";
+import { searchSubmitters, type SubmitterSearchResult } from "@/app/actions/submitter";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { FileUpload } from "@/components/ui/FileUpload";
 import type { CompetitionAttachment } from "@/data/types";
@@ -17,8 +18,9 @@ const STEPS = [
   { id: 2, title: "Brief", description: "Your competition brief" },
   { id: 3, title: "Prize Pool", description: "Structure the prize" },
   { id: 4, title: "Timeline", description: "Registration and submission deadlines" },
-  { id: 5, title: "Rights & IP", description: "Protect designers" },
-  { id: 6, title: "Review", description: "Preview and publish" },
+  { id: 5, title: "Jury", description: "Add judges from Arch accounts" },
+  { id: 6, title: "Rights & IP", description: "Protect designers" },
+  { id: 7, title: "Review", description: "Preview and publish" },
 ];
 
 const COMPETITION_TYPES = [
@@ -86,6 +88,8 @@ interface FormState {
   // Timeline
   registrationDeadline: string;
   submissionDeadline: string;
+  // Jury
+  jury: JuryInput[];
   // Rights
   ipTermsType: string;
 }
@@ -107,6 +111,7 @@ function blankForm(): FormState {
     tiers: DEFAULT_TIERS,
     registrationDeadline: "",
     submissionDeadline: "",
+    jury: [],
     ipTermsType: "retain_all",
   };
 }
@@ -461,6 +466,122 @@ function StepTimeline({ form, set }: { form: FormState; set: (patch: Partial<For
   );
 }
 
+function StepJury({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SubmitterSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) { setResults([]); return; }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        setResults(await searchSubmitters(q));
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  function addJuror(s: SubmitterSearchResult) {
+    if (form.jury.some((j) => j.submitterSlug === s.slug)) return;
+    const location = [s.city, s.country].filter(Boolean).join(", ");
+    set({ jury: [...form.jury, { submitterSlug: s.slug, name: s.name, photo: s.photo, bio: s.bio, location }] });
+    setQuery("");
+    setResults([]);
+  }
+
+  function removeJuror(i: number) {
+    set({ jury: form.jury.filter((_, idx) => idx !== i) });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg bg-blue-50 p-4">
+        <p className="text-sm text-blue-700">
+          Jurors must have an account on Arch. Search by name to find and add them.
+          You can also skip this step and add jurors after publishing.
+        </p>
+      </div>
+
+      {/* Search */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Search for jurors</label>
+        <div className="relative mt-1">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onBlur={() => setTimeout(() => setResults([]), 150)}
+            placeholder="Name…"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+          />
+          {searching && (
+            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+            </div>
+          )}
+          {results.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+              {results.map((s) => {
+                const already = form.jury.some((j) => j.submitterSlug === s.slug);
+                return (
+                  <button
+                    key={s.slug}
+                    onMouseDown={() => addJuror(s)}
+                    disabled={already}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors",
+                      already ? "cursor-default opacity-40" : "hover:bg-gray-50"
+                    )}
+                  >
+                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded bg-gray-200">
+                      {s.photo && <img src={s.photo} alt={s.name} className="h-full w-full object-cover" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-900">{s.name}</div>
+                      <div className="truncate text-xs text-gray-500">{[s.city, s.country].filter(Boolean).join(", ")}</div>
+                    </div>
+                    {already && <span className="text-xs text-gray-400">Added</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Juror list */}
+      {form.jury.length > 0 ? (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-gray-700">Jury ({form.jury.length})</div>
+          {form.jury.map((j, i) => (
+            <div key={j.submitterSlug} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
+              <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-gray-100">
+                {j.photo
+                  ? <img src={j.photo} alt={j.name} className="h-full w-full object-cover" />
+                  : <div className="flex h-full w-full items-center justify-center text-sm font-bold text-gray-400">{j.name.charAt(0)}</div>
+                }
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-900">{j.name}</div>
+                {j.location && <div className="text-xs text-gray-500">{j.location}</div>}
+              </div>
+              <button onClick={() => removeJuror(i)} className="text-gray-300 hover:text-red-400" aria-label="Remove">
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-center text-sm text-gray-400">No jurors added yet.</p>
+      )}
+    </div>
+  );
+}
+
 function StepRights({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
   return (
     <div className="space-y-6">
@@ -627,6 +748,7 @@ export default function CreatePage() {
           tiers: form.tiers,
           ipTermsType: form.ipTermsType,
           attachments: form.attachments,
+          jury: form.jury,
         });
         router.push(`/competitions/${slug}`);
       } catch (e) {
@@ -660,6 +782,7 @@ export default function CreatePage() {
     <StepBrief key="brief" {...stepProps} />,
     <StepPrize key="prize" {...stepProps} />,
     <StepTimeline key="timeline" {...stepProps} />,
+    <StepJury key="jury" {...stepProps} />,
     <StepRights key="rights" {...stepProps} />,
     <StepReview key="review" form={form} onSubmit={handleSubmit} isPending={isPending} error={submitError} />,
   ];

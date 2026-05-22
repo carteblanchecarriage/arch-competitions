@@ -11,9 +11,9 @@ import { formatCurrency } from "@/lib/utils";
 
 export default async function Home() {
   const [competitions, lastCall, featured] = await Promise.all([
-    getAllCompetitions(),
-    getLastCallCompetitions(),
-    getFeaturedCompetitions(),
+    getAllCompetitions().catch(() => []),
+    getLastCallCompetitions().catch(() => []),
+    getFeaturedCompetitions().catch(() => []),
   ]);
 
   const stats = {

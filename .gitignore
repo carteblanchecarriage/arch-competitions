@@ -40,3 +40,6 @@ next-env.d.ts
 
 # planning (not tracked)
 /planning/
+
+# supabase (migrations run manually, not tracked)
+/supabase/

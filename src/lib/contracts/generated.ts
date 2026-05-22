@@ -264,6 +264,7 @@ export const competitionEscrowAbi = [
   { type: 'error', inputs: [], name: 'NoFunds' },
   { type: 'error', inputs: [], name: 'NotInitializing' },
   { type: 'error', inputs: [], name: 'NotOrganizer' },
+  { type: 'error', inputs: [], name: 'NotPlatform' },
   { type: 'error', inputs: [], name: 'NothingToClaim' },
   { type: 'error', inputs: [], name: 'NothingToRefund' },
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },

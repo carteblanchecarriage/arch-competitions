@@ -7,11 +7,10 @@ import {
 } from "@/data/db";
 import { formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Tag } from "@/components/ui/Tag";
 import { EditProfileButton } from "@/components/auth/EditProfileButton";
 
 export async function generateStaticParams() {
-  const slugs = await getAllSubmitterSlugs();
+  const slugs = await getAllSubmitterSlugs().catch(() => [] as string[]);
   return slugs.map((slug) => ({ slug }));
 }
 
@@ -28,8 +27,8 @@ export default async function SubmitterProfilePage({
 }) {
   const { slug } = await params;
   const [submitter, competitions] = await Promise.all([
-    getSubmitterBySlug(slug),
-    getAllCompetitions(),
+    getSubmitterBySlug(slug).catch(() => undefined),
+    getAllCompetitions().catch(() => []),
   ]);
   if (!submitter) notFound();
 
@@ -78,15 +77,6 @@ export default async function SubmitterProfilePage({
               ` · Est. ${submitter.yearEstablished}`}
           </p>
           <p className="mt-3 text-gray-700">{submitter.bio}</p>
-          {submitter.specialties.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {submitter.specialties.map((s) => (
-                <Tag key={s} variant="default">
-                  {s}
-                </Tag>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 

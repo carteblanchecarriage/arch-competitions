@@ -498,22 +498,50 @@ contract CompetitionEscrowTest is Test {
 
     // ────────────────────────────── cancel ──────────────────────────────
 
-    function test_cancel_organizer_anytime() public {
+    function test_cancel_organizer_allowed_when_unfunded() public {
+        // Pool is empty: organizer can still cancel freely.
+        vm.prank(organizer);
+        escrow.cancel();
+        assertEq(uint256(escrow.state()), uint256(CompetitionEscrow.State.Cancelled));
+    }
+
+    function test_cancel_organizer_blocked_once_funded() public {
+        // Once anyone has contributed, organizer loses cancel rights.
         vm.prank(alice);
         escrow.fund(1_000e6);
 
         vm.prank(organizer);
+        vm.expectRevert(CompetitionEscrow.NotPlatform.selector);
         escrow.cancel();
+    }
 
+    function test_cancel_platform_can_cancel_funded() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        vm.prank(feeRecipient);
+        escrow.cancel();
         assertEq(uint256(escrow.state()), uint256(CompetitionEscrow.State.Cancelled));
     }
 
-    function test_cancel_non_organizer_before_expiration_reverts() public {
+    function test_cancel_non_platform_before_expiration_reverts() public {
         vm.prank(alice);
         escrow.fund(1_000e6);
 
         vm.prank(bob);
-        vm.expectRevert(CompetitionEscrow.TooEarly.selector);
+        vm.expectRevert(CompetitionEscrow.NotPlatform.selector);
+        escrow.cancel();
+    }
+
+    function test_cancel_organizer_blocked_when_locked() public {
+        // Locked state also removes organizer's cancel rights.
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+        vm.prank(organizer);
+        escrow.lock();
+
+        vm.prank(organizer);
+        vm.expectRevert(CompetitionEscrow.NotPlatform.selector);
         escrow.cancel();
     }
 
@@ -567,7 +595,7 @@ contract CompetitionEscrowTest is Test {
         vm.prank(bob);
         escrow.fund(500e6);
 
-        vm.prank(organizer);
+        vm.prank(feeRecipient);
         escrow.cancel();
 
         uint256 aliceBefore = usdc.balanceOf(alice);
@@ -585,7 +613,7 @@ contract CompetitionEscrowTest is Test {
     function test_claimRefund_double_claim_reverts() public {
         vm.prank(alice);
         escrow.fund(1_000e6);
-        vm.prank(organizer);
+        vm.prank(feeRecipient);
         escrow.cancel();
 
         vm.prank(alice);
@@ -598,7 +626,7 @@ contract CompetitionEscrowTest is Test {
     function test_claimRefund_non_contributor_reverts() public {
         vm.prank(alice);
         escrow.fund(1_000e6);
-        vm.prank(organizer);
+        vm.prank(feeRecipient);
         escrow.cancel();
 
         vm.prank(carol);

@@ -1,4 +1,5 @@
 export type CompetitionStatus =
+  | "draft"
   | "open"
   | "judging"
   | "announced";
@@ -55,10 +56,11 @@ export interface Organizer {
 
 export interface JuryMember {
   name: string;
-  title: string;
-  organization: string;
+  title?: string;
+  organization?: string;
   photo?: string;
   bio: string;
+  submitterSlug?: string;
 }
 
 export interface EvaluationCriterion {
@@ -131,6 +133,29 @@ export interface CompetitionAttachment {
   url: string;
   size?: number;
   mimeType?: string;
+}
+
+export type EntryStatus = "draft" | "submitted" | "withdrawn";
+
+export interface EntryFile {
+  name: string;
+  url: string;
+  size?: number;
+  mimeType?: string;
+}
+
+export interface Entry {
+  id: string;
+  competitionId: string;
+  submitterId: string;
+  title: string;
+  description: string;
+  projectUrl?: string;
+  files: EntryFile[];
+  status: EntryStatus;
+  submittedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Competition {

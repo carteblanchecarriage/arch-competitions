@@ -8,6 +8,7 @@ import { AuthButton } from "@/components/auth/AuthButton";
 const NAV_ITEMS = [
   { label: "Competitions", href: "/competitions" },
   { label: "Create", href: "/create" },
+  { label: "Blog", href: "/blog" },
   { label: "About", href: "/about" },
 ];
 

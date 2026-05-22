@@ -5,7 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { getSignedUploadUrl } from "@/app/actions/storage";
 import type { CompetitionAttachment } from "@/data/types";
 
-const BUCKET = "competition-files";
+const DEFAULT_BUCKET = "competition-files";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
 const ACCEPTED = [
@@ -32,9 +32,10 @@ interface FileUploadProps {
   onAdd: (attachment: CompetitionAttachment) => void;
   onRemove: (index: number) => void;
   uploadSessionId: string;
+  bucket?: string;
 }
 
-export function FileUpload({ files, onAdd, onRemove, uploadSessionId }: FileUploadProps) {
+export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = DEFAULT_BUCKET }: FileUploadProps) {
   const { getAccessToken } = usePrivy();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId }: FileUplo
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${uploadSessionId}/${safeName}`;
 
-      const signedUrl = await getSignedUploadUrl(token, BUCKET, path);
+      const signedUrl = await getSignedUploadUrl(token, bucket, path);
 
       const res = await fetch(signedUrl, {
         method: "PUT",
@@ -60,7 +61,7 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId }: FileUplo
       });
       if (!res.ok) throw new Error("Upload failed");
 
-      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
       onAdd({ name: file.name, url: publicUrl, size: file.size, mimeType: file.type });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");

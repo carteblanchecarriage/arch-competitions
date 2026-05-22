@@ -113,7 +113,7 @@ export function FilterSidebar({ filters, onChange, competitionCount }: FilterSid
 
       <FilterSection title="Status">
         <CheckboxGroup
-          options={Object.keys(STATUS_CONFIG) as CompetitionStatus[]}
+          options={(Object.keys(STATUS_CONFIG) as CompetitionStatus[]).filter((s) => s !== "draft")}
           selected={filters.statuses}
           onChange={(statuses) => onChange({ ...filters, statuses })}
           labels={Object.fromEntries(

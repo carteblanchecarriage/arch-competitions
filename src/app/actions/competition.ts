@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
-import { createWalletClient, createPublicClient, http, keccak256, toHex } from "viem";
+import { createWalletClient, createPublicClient, http, keccak256, toHex, parseUnits } from "viem";
 import type { CompetitionAttachment } from "@/data/types";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
@@ -39,6 +39,14 @@ export interface TierInput {
   percent: number; // share of winner pool (sums to 100)
 }
 
+export interface JuryInput {
+  submitterSlug: string;
+  name: string;
+  photo: string | null;
+  bio: string;
+  location: string;
+}
+
 export interface CreateCompetitionInput {
   title: string;
   type: string;
@@ -55,6 +63,7 @@ export interface CreateCompetitionInput {
   tiers: TierInput[];
   ipTermsType: string;
   attachments: CompetitionAttachment[];
+  jury: JuryInput[];
 }
 
 export async function createCompetition(
@@ -68,37 +77,44 @@ export async function createCompetition(
   // ── 1. Get or create organizer ────────────────────────────────────────
   let { data: organizer } = await db
     .from("organizers")
-    .select("id")
+    .select("id, name")
     .eq("privy_user_id", userId)
     .maybeSingle();
 
-  if (!organizer) {
-    // Fall back to their submitter name if they have a profile
-    const { data: submitter } = await db
-      .from("submitters")
-      .select("name")
-      .eq("privy_user_id", userId)
-      .maybeSingle();
+  // Always resolve the submitter name so we can keep the organizer in sync
+  const { data: submitter } = await db
+    .from("submitters")
+    .select("name")
+    .eq("privy_user_id", userId)
+    .maybeSingle();
 
-    const orgName = submitter?.name || "Independent Organizer";
-    const orgSlug = slugify(orgName);
+  const resolvedName = submitter?.name || "Independent Organizer";
+
+  if (!organizer) {
+    const orgSlug = slugify(resolvedName);
 
     const { data: newOrg, error: orgErr } = await db
       .from("organizers")
       .insert({
         slug: orgSlug,
         privy_user_id: userId,
-        name: orgName,
+        name: resolvedName,
         description: "",
         is_verified: false,
         competitions_count: 0,
         payout_completion_rate: 100,
       })
-      .select("id")
+      .select("id, name")
       .single();
 
     if (orgErr) throw new Error(`Create organizer: ${orgErr.message}`);
     organizer = newOrg;
+  } else if (submitter?.name && organizer.name !== submitter.name) {
+    // Submitter profile was created or renamed after the organizer — sync it
+    await db
+      .from("organizers")
+      .update({ name: submitter.name })
+      .eq("id", organizer.id);
   }
 
   // ── 2. Derive prize structure ─────────────────────────────────────────
@@ -172,7 +188,7 @@ export async function createCompetition(
     site_context: input.siteContext || null,
     location: input.location || null,
     language: "en",
-    status: "open",
+    status: "draft",
     eligibility: "open_to_all",
     tags: [],
     registration_deadline: input.registrationDeadline || null,
@@ -194,7 +210,15 @@ export async function createCompetition(
     ip_terms_warning_level: input.ipTermsType === "winning_transfer" ? "caution"
       : input.ipTermsType === "retain_all" ? "none" : "info",
     hero_image: input.heroImageUrl || null,
-    jury: [],
+    thumbnail_image: input.heroImageUrl || null,
+    jury: input.jury.map((j) => ({
+      submitterSlug: j.submitterSlug,
+      name: j.name,
+      title: "",
+      organization: j.location,
+      photo: j.photo ?? undefined,
+      bio: j.bio,
+    })),
     evaluation_criteria: [],
     deliverables: [],
     attachments: input.attachments ?? [],
@@ -205,8 +229,69 @@ export async function createCompetition(
 
   if (compErr) throw new Error(`Create competition: ${compErr.message}`);
 
-  // Increment organizer competition count
-  await db.rpc("increment_competitions_count", { org_id: organizer!.id }).maybeSingle();
-
   return { slug };
+}
+
+const USDC_DECIMALS = 6;
+
+export async function publishCompetition(
+  accessToken: string,
+  competitionSlug: string
+): Promise<void> {
+  const privy = getPrivyServer();
+  const { userId } = await privy.verifyAuthToken(accessToken);
+  const db = supabaseAdmin();
+
+  const { data: org } = await db
+    .from("organizers")
+    .select("id")
+    .eq("privy_user_id", userId)
+    .maybeSingle();
+
+  if (!org) throw new Error("No organizer account found.");
+
+  const { data: comp, error } = await db
+    .from("competitions")
+    .select("id, status, escrow_address, chain_id, prize_total_amount, is_open_pool")
+    .eq("slug", competitionSlug)
+    .eq("organizer_id", org.id)
+    .maybeSingle();
+
+  if (error || !comp) throw new Error("Competition not found or access denied.");
+  if (comp.status !== "draft") throw new Error("Competition is already live.");
+
+  if (comp.escrow_address) {
+    const isProd = comp.chain_id === base.id;
+    const chain = isProd ? base : baseSepolia;
+    const rpcUrl = isProd
+      ? process.env.NEXT_PUBLIC_BASE_RPC_URL
+      : process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL;
+
+    const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
+    const contributed = await publicClient.readContract({
+      abi: competitionEscrowAbi,
+      address: comp.escrow_address as `0x${string}`,
+      functionName: "totalContributed",
+    }) as bigint;
+
+    const required = comp.is_open_pool
+      ? 1n
+      : parseUnits(String(comp.prize_total_amount ?? 0), USDC_DECIMALS);
+
+    if (contributed < required) {
+      const label = comp.is_open_pool
+        ? "any amount"
+        : `$${Number(comp.prize_total_amount).toLocaleString()} USDC`;
+      throw new Error(`Deposit ${label} into the escrow before publishing.`);
+    }
+  }
+
+  const { error: updateErr } = await db
+    .from("competitions")
+    .update({ status: "open" })
+    .eq("id", comp.id);
+
+  if (updateErr) throw new Error(`Failed to publish: ${updateErr.message}`);
+
+  await db.rpc("increment_competitions_count", { org_id: org.id }).maybeSingle();
 }

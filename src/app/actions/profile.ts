@@ -27,7 +27,6 @@ export interface ProfileInput {
   country: string;
   city?: string;
   bio: string;
-  specialties: string[];
   website?: string;
   yearEstablished?: number;
 }
@@ -71,7 +70,7 @@ export async function saveProfile(accessToken: string, input: ProfileInput) {
         country: input.country,
         city: input.city ?? null,
         bio: input.bio,
-        specialties: input.specialties,
+        specialties: [],
         website: input.website ?? null,
         year_established: input.yearEstablished ?? null,
       })
@@ -91,7 +90,7 @@ export async function saveProfile(accessToken: string, input: ProfileInput) {
     country: input.country,
     city: input.city ?? null,
     bio: input.bio,
-    specialties: input.specialties,
+    specialties: [],
     website: input.website ?? null,
     year_established: input.yearEstablished ?? null,
   });

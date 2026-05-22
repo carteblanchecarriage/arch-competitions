@@ -4,6 +4,12 @@ export const STATUS_CONFIG: Record<
   CompetitionStatus,
   { label: string; color: string; bgColor: string; dotColor: string }
 > = {
+  draft: {
+    label: "Draft — Not Live",
+    color: "text-gray-600",
+    bgColor: "bg-gray-100",
+    dotColor: "bg-gray-400",
+  },
   open: {
     label: "Open for Submissions",
     color: "text-emerald-700",

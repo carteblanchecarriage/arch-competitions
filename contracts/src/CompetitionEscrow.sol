@@ -66,6 +66,7 @@ contract CompetitionEscrow is Initializable, ReentrancyGuard {
     error NoFunds();
     error NothingToClaim();
     error NothingToRefund();
+    error NotPlatform();
     error TooEarly();
     error FeeTooHigh();
     error DeadlinesInvalid();
@@ -200,14 +201,25 @@ contract CompetitionEscrow is Initializable, ReentrancyGuard {
     ///         transfers nothing. After this, contributors call `claimRefund`
     ///         themselves to recover their own funds.
     ///
-    ///         Two callers permitted:
-    ///         - The organizer, any time before resolution.
+    ///         Three callers permitted:
+    ///         - The organizer, only while the pool is empty and unfunded.
+    ///         - The platform (feeRecipient), any time before resolution —
+    ///           once funds are committed or the escrow is locked, the organizer
+    ///           loses cancel rights so entrants' time is protected.
     ///         - Anyone, after `expirationTimestamp` (rescue path).
     function cancel() external {
         if (state != State.Funding && state != State.Locked) revert InvalidState();
-        if (msg.sender != organizer) {
-            if (block.timestamp < expirationTimestamp) revert TooEarly();
+
+        if (block.timestamp >= expirationTimestamp) {
+            // Rescue path: anyone can trigger after expiration.
+        } else if (totalContributed > 0 || state == State.Locked) {
+            // Funded or locked: only the platform can cancel.
+            if (msg.sender != feeRecipient) revert NotPlatform();
+        } else {
+            // Empty pool, still in Funding: organizer can cancel freely.
+            if (msg.sender != organizer) revert NotOrganizer();
         }
+
         state = State.Cancelled;
         emit Cancelled(msg.sender);
     }
