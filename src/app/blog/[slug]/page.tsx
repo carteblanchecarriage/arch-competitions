@@ -15,7 +15,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) return {};
-  return { title: post.title, description: post.excerpt };
+  return {
+    title: post.title,
+    description: post.excerpt,
+    ...(post.image && { openGraph: { images: [post.image] } }),
+  };
 }
 
 function formatDate(dateStr: string) {
@@ -47,6 +51,16 @@ export default async function BlogPostPage({ params }: Props) {
 
       <article className="mt-8">
         <header className="mb-10">
+          {post.image && (
+            <div className="mb-8 -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden rounded-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={post.image}
+                alt=""
+                className="w-full object-cover max-h-80"
+              />
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400">
             <time dateTime={post.date}>{formatDate(post.date)}</time>
             {post.tags.map((tag) => (

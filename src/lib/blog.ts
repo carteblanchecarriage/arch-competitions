@@ -12,6 +12,7 @@ export interface BlogPostMeta {
   date: string;
   excerpt: string;
   tags: string[];
+  image?: string;
 }
 
 export interface BlogPost extends BlogPostMeta {
@@ -37,6 +38,7 @@ export function getAllPostMetas(): BlogPostMeta[] {
         date: data.date ?? "",
         excerpt: data.excerpt ?? "",
         tags: Array.isArray(data.tags) ? data.tags : [],
+        image: data.image ?? undefined,
       };
     })
     .sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -52,16 +54,23 @@ export async function getPost(slug: string): Promise<BlogPost | null> {
   if (!fs.existsSync(filepath)) return null;
   const raw = fs.readFileSync(filepath, "utf8");
   const { data, content } = matter(raw);
-  const processed = await remark().use(html, { allowDangerousHtml: true }).process(content);
+  const rawHtmlBlocks: string[] = [];
+  const contentWithPlaceholders = content.replace(/<iframe[^>]*(?:\/>|>[^<]*<\/iframe>)/gi, (match) => {
+    rawHtmlBlocks.push(match);
+    return `RAWHTML_PLACEHOLDER_${rawHtmlBlocks.length - 1}`;
+  });
+  const processed = await remark().use(html, { allowDangerousHtml: true }).process(contentWithPlaceholders);
   const contentHtml = processed
     .toString()
-    .replace(/<a href="(https?:\/\/[^"]+)"/g, '<a href="$1" target="_blank" rel="noopener noreferrer"');
+    .replace(/<a href="(https?:\/\/[^"]+)"/g, '<a href="$1" target="_blank" rel="noopener noreferrer"')
+    .replace(/RAWHTML_PLACEHOLDER_(\d+)/g, (_, i) => rawHtmlBlocks[parseInt(i)] ?? "");
   return {
     slug,
     title: data.title ?? slug,
     date: data.date ?? "",
     excerpt: data.excerpt ?? "",
     tags: Array.isArray(data.tags) ? data.tags : [],
+    image: data.image ?? undefined,
     contentHtml,
   };
 }

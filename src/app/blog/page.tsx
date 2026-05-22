@@ -35,6 +35,16 @@ export default function BlogPage() {
         <div className="divide-y divide-gray-200">
           {posts.map((post) => (
             <article key={post.slug} className="py-10">
+              {post.image && (
+                <Link href={`/blog/${post.slug}`} className="block mb-5 overflow-hidden rounded-lg">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={post.image}
+                    alt=""
+                    className="w-full object-cover max-h-52 hover:opacity-90 transition-opacity"
+                  />
+                </Link>
+              )}
               <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400">
                 <time dateTime={post.date}>{formatDate(post.date)}</time>
                 {post.tags.map((tag) => (
