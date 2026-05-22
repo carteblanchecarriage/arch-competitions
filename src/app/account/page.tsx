@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
@@ -295,7 +295,7 @@ function ProfileEdit({
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export default function AccountPage() {
+function AccountContent() {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
   const searchParams = useSearchParams();
   const startInEdit = searchParams.get("edit") === "true";
@@ -423,5 +423,13 @@ export default function AccountPage() {
       onSave={handleSave}
       onCancel={handleCancel}
     />
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense>
+      <AccountContent />
+    </Suspense>
   );
 }
