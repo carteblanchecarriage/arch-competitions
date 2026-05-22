@@ -6,7 +6,7 @@ import type { CompetitionAttachment } from "@/data/types";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
 import { getPrivyServer } from "@/lib/privy/server";
-import { competitionEscrowFactoryAbi } from "@/lib/contracts/generated";
+import { competitionEscrowFactoryAbi, competitionEscrowAbi } from "@/lib/contracts/generated";
 
 const PLATFORM_FEE_PERCENT = 5;
 
