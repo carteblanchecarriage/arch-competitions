@@ -13,7 +13,7 @@ contract CompetitionEscrowFactory is Ownable {
     /// @dev Hard cap on platform fee. Owner can lower below this; never raise above.
     uint16 public constant MAX_FEE_BPS = 1000; // 10%
 
-    address public immutable implementation;
+    address public implementation;
     address public feeRecipient;
     uint16 public feeBps;
 
@@ -29,6 +29,7 @@ contract CompetitionEscrowFactory is Ownable {
     );
     event FeeUpdated(uint16 newBps);
     event FeeRecipientUpdated(address indexed newRecipient);
+    event ImplementationUpdated(address indexed newImplementation);
 
     error FeeTooHigh();
     error ZeroAddress();
@@ -105,6 +106,19 @@ contract CompetitionEscrowFactory is Ownable {
         if (newRecipient == address(0)) revert ZeroAddress();
         feeRecipient = newRecipient;
         emit FeeRecipientUpdated(newRecipient);
+    }
+
+    /// @notice Update the implementation contract used for future escrow clones.
+    ///         Existing escrows are unaffected — they keep the implementation they
+    ///         were cloned from. Use this to ship bug fixes or new features for
+    ///         competitions created after the upgrade.
+    ///
+    ///         When the protocol is stable, renounce factory ownership to lock this
+    ///         permanently and prevent any further changes.
+    function setImplementation(address newImplementation) external onlyOwner {
+        if (newImplementation == address(0)) revert ZeroAddress();
+        implementation = newImplementation;
+        emit ImplementationUpdated(newImplementation);
     }
 
     function _salt(address organizer, bytes32 competitionId) internal pure returns (bytes32) {

@@ -35,10 +35,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
           accentColor: "#111827",
           showWalletLoginFirst: false,
         },
-        loginMethods: isProd ? ["email", "wallet"] : ["email"],
+        loginMethods: ["email", "wallet"],
         embeddedWallets: {
           ethereum: {
-            createOnLogin: isProd ? "all-users" : "off",
+            createOnLogin: "all-users",
           },
         },
         defaultChain: isProd ? base : baseSepolia,

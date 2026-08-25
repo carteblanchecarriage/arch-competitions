@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useId } from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -39,6 +39,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
   const [isAlreadySubmitted, setIsAlreadySubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ipAgreed, setIpAgreed] = useState(false);
+  const [anonymityAgreed, setAnonymityAgreed] = useState(false);
 
   const needsIpAck = competition.ipTerms.warningLevel !== "none";
 
@@ -72,6 +73,10 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
   async function handleSave(submit: boolean) {
     setError(null);
     if (!form.title.trim()) { setError("Please add a project title."); return; }
+    if (submit && !anonymityAgreed) {
+      setError("Please confirm your submission contains no identifying information.");
+      return;
+    }
     if (submit && needsIpAck && !ipAgreed) {
       setError("Please acknowledge the IP terms before submitting.");
       return;
@@ -106,13 +111,13 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
     }
   }
 
-  // ── render states ────────────���──────────────────────��──────────────────────
+  // ── render states ────────────ï¿½ï¿½ï¿½──────────────────────ï¿½ï¿½──────────────────────
 
   if (pageState.kind === "loading") {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-14 animate-pulse rounded-xl bg-gray-100" />
+          <div key={i} className="h-14 animate-pulse  bg-gray-100" />
         ))}
       </div>
     );
@@ -120,7 +125,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
 
   if (pageState.kind === "unauthenticated") {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
+      <div className=" border border-gray-200 bg-white p-10 text-center">
         <p className="text-gray-600">Sign in to submit your entry.</p>
         <Button onClick={login} className="mt-4">Sign in</Button>
       </div>
@@ -129,7 +134,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
 
   if (pageState.kind === "no_profile") {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
+      <div className=" border border-gray-200 bg-white p-10 text-center">
         <p className="font-medium text-gray-800">You need a profile first</p>
         <p className="mt-2 text-sm text-gray-500">
           Create a designer profile so your entry is attributed correctly.
@@ -143,7 +148,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
 
   if (pageState.kind === "done") {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-10 text-center">
+      <div className=" border border-emerald-200 bg-emerald-50 p-10 text-center">
         <svg className="mx-auto h-10 w-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -169,14 +174,14 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
     <div className="space-y-6">
       {/* Submitted banner */}
       {isAlreadySubmitted && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className=" border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           ✓ Your entry is submitted. You can still update it until the deadline.
         </div>
       )}
 
       {/* Deliverables guide */}
       {competition.deliverables.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+        <div className=" border border-gray-200 bg-gray-50 p-5">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
             Required deliverables
           </h3>
@@ -184,8 +189,8 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
             {competition.deliverables.map((d, i) => (
               <li key={i} className="text-sm">
                 <span className="font-medium text-gray-800">{d.type}</span>
-                {d.format && <span className="text-gray-500"> · {d.format}</span>}
-                {d.maxSize && <span className="text-gray-400 text-xs"> · max {d.maxSize}</span>}
+                {d.format && <span className="text-gray-500"> Â· {d.format}</span>}
+                {d.maxSize && <span className="text-gray-400 text-xs"> Â· max {d.maxSize}</span>}
                 {d.description && (
                   <p className="mt-0.5 text-xs text-gray-500">{d.description}</p>
                 )}
@@ -196,7 +201,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
       )}
 
       {/* Form */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-5">
+      <div className=" border border-gray-200 bg-white p-6 space-y-5">
         {/* Title */}
         <div>
           <label className="block text-sm font-medium text-gray-700">
@@ -208,7 +213,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             placeholder="Name your project"
             disabled={isBusy}
-            className="mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+            className="mt-1.5 w-full  border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
           />
         </div>
 
@@ -224,7 +229,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
             placeholder="Describe your design approach, concept, and key decisions…"
             rows={5}
             disabled={isBusy}
-            className="mt-1.5 w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+            className="mt-1.5 w-full resize-none  border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
           />
         </div>
 
@@ -240,7 +245,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
             onChange={(e) => setForm((f) => ({ ...f, projectUrl: e.target.value }))}
             placeholder="https://"
             disabled={isBusy}
-            className="mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+            className="mt-1.5 w-full  border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
           />
         </div>
 
@@ -261,10 +266,36 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
         </div>
       </div>
 
+      {/* Anonymity acknowledgment — required on every submission */}
+      <div className="border border-gray-200 bg-gray-50 p-5">
+        <h3 className="text-sm font-semibold text-gray-800">Anonymous submission required</h3>
+        <p className="mt-1 text-xs text-gray-500">
+          This competition uses blind judging. Your submitted files, drawings, and written materials must contain <strong>no identifying information</strong>. The following are not permitted anywhere in your submission:
+        </p>
+        <ul className="mt-2 space-y-1 text-xs text-gray-500 list-disc list-inside">
+          <li>Your name, firm name, or team members' names</li>
+          <li>Logos, letterheads, or branded templates</li>
+          <li>Email addresses, phone numbers, or website URLs</li>
+          <li>Watermarks, signatures, or initials</li>
+          <li>File metadata containing author or company fields</li>
+        </ul>
+        <label className="mt-3 flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={anonymityAgreed}
+            onChange={(e) => setAnonymityAgreed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 border-gray-300 accent-gray-800"
+          />
+          <span className="text-sm text-gray-700">
+            I confirm my submission contains no identifying information
+          </span>
+        </label>
+      </div>
+
       {/* IP terms acknowledgment */}
       {needsIpAck && (
         <div
-          className={`rounded-xl border p-5 ${
+          className={` border p-5 ${
             competition.ipTerms.warningLevel === "caution"
               ? "border-amber-200 bg-amber-50"
               : "border-gray-200 bg-gray-50"
@@ -277,7 +308,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
               type="checkbox"
               checked={ipAgreed}
               onChange={(e) => setIpAgreed(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-gray-800"
+              className="mt-0.5 h-4 w-4  border-gray-300 accent-gray-800"
             />
             <span className="text-sm text-gray-700">
               I have read and agree to these IP terms
@@ -287,7 +318,7 @@ export function SubmitEntryForm({ competition }: { competition: Competition }) {
       )}
 
       {error && (
-        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className=" bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
       <div className="flex gap-3">

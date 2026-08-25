@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+﻿import { cn } from "@/lib/utils";
 
 interface TagProps {
   children: React.ReactNode;
@@ -18,10 +18,10 @@ export function Tag({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-        variant === "default" && "bg-gray-100 text-gray-700",
-        variant === "type" && "bg-blue-50 text-blue-700",
-        variant === "eligibility" && "bg-purple-50 text-purple-700",
+        "inline-flex items-center px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-widest",
+        variant === "default" && "bg-gray-100 text-gray-600",
+        variant === "type" && "bg-gray-100 text-gray-600",
+        variant === "eligibility" && "bg-gray-100 text-gray-600",
         color && bgColor && `${color} ${bgColor}`,
         className
       )}

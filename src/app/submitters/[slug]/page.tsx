@@ -16,7 +16,7 @@ export async function generateStaticParams() {
 
 export function generateMetadata() {
   return {
-    title: "Designer Profile — Arch Competitions",
+    title: "Designer Profile — Counterparti",
   };
 }
 
@@ -66,7 +66,7 @@ export default async function SubmitterProfilePage({
               {submitter.name}
             </h1>
             <EditProfileButton slug={submitter.slug} />
-            <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 capitalize">
+            <span className="bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 capitalize">
               {submitter.type}
             </span>
           </div>
@@ -77,12 +77,22 @@ export default async function SubmitterProfilePage({
               ` · Est. ${submitter.yearEstablished}`}
           </p>
           <p className="mt-3 text-gray-700">{submitter.bio}</p>
+          {submitter.type === "studio" && submitter.specialties.length > 0 && (
+            <div className="mt-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Contributors</span>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {submitter.specialties.map((name, i) => (
+                  <span key={i} className="bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{name}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Stats */}
       <div className="mt-8 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+        <div className="border border-gray-200 bg-white p-4 text-center">
           <p className="text-2xl font-bold text-gray-900">
             {competitionHistory.length}
           </p>
@@ -90,13 +100,13 @@ export default async function SubmitterProfilePage({
             Competition{competitionHistory.length !== 1 ? "s" : ""} Won
           </p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+        <div className="border border-gray-200 bg-white p-4 text-center">
           <p className="text-2xl font-bold text-gray-900">
             {formatCurrency(totalPrizeWon)}
           </p>
           <p className="text-xs text-gray-500">Total Prizes</p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+        <div className="border border-gray-200 bg-white p-4 text-center">
           <p className="text-2xl font-bold text-gray-900">
             {new Set(competitionHistory.map((h) => h.competition.region)).size}
           </p>
@@ -114,7 +124,7 @@ export default async function SubmitterProfilePage({
             <Link
               key={competition.id}
               href={`/competitions/${competition.slug}`}
-              className="block overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md"
+              className="block overflow-hidden border border-gray-200 bg-white transition-shadow hover:shadow-md"
             >
               <div className="flex">
                 <div className="hidden w-48 shrink-0 sm:block">

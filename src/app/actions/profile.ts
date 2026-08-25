@@ -29,6 +29,7 @@ export interface ProfileInput {
   bio: string;
   website?: string;
   yearEstablished?: number;
+  contributors?: string[];
 }
 
 /** Returns the submitter row for the logged-in user, or null if none exists. */
@@ -70,7 +71,7 @@ export async function saveProfile(accessToken: string, input: ProfileInput) {
         country: input.country,
         city: input.city ?? null,
         bio: input.bio,
-        specialties: [],
+        specialties: input.type === "studio" ? (input.contributors ?? []) : [],
         website: input.website ?? null,
         year_established: input.yearEstablished ?? null,
       })
@@ -90,7 +91,7 @@ export async function saveProfile(accessToken: string, input: ProfileInput) {
     country: input.country,
     city: input.city ?? null,
     bio: input.bio,
-    specialties: [],
+    specialties: input.type === "studio" ? (input.contributors ?? []) : [],
     website: input.website ?? null,
     year_established: input.yearEstablished ?? null,
   });

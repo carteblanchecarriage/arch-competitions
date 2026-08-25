@@ -11,6 +11,11 @@ import { formatCurrency, formatDate, formatDeadline, daysUntil, cn } from "@/lib
 import type { Competition } from "@/data/types";
 import { FundCompetitionPanel } from "@/components/detail/FundCompetitionPanel";
 import { ShareButton } from "@/components/ui/ShareButton";
+import { RegisterButton } from "@/components/competitions/RegisterButton";
+import { QASection } from "@/components/competitions/QASection";
+import { MyEntryPanel } from "@/components/competitions/MyEntryPanel";
+import { getRegistrationCount } from "@/data/db";
+import { getQuestions } from "@/app/actions/questions";
 
 export async function generateStaticParams() {
   const slugs = await getAllSlugs().catch(() => [] as string[]);
@@ -51,14 +56,14 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
     totalAmount > 0 && Math.abs(breakdownSum - netToWinners) > 1;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
+    <div className="border border-gray-200 bg-white p-6">
       <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Prize Pool</h2>
       <div className="mt-2 flex items-baseline gap-2">
         <span className="text-3xl font-bold tracking-tight text-gray-900">
           {isOpenPool ? "Open" : formatCurrency(totalAmount)}
         </span>
         {isOpenPool && (
-          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+          <span className="bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
             Open Pool
           </span>
         )}
@@ -71,7 +76,7 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
       )}
 
       {breakdownMismatch && (
-        <div className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+        <div className="mt-3 bg-amber-50 px-3 py-2 text-xs text-amber-700">
           Prize breakdown ({formatCurrency(breakdownSum)}) does not match net to winners ({formatCurrency(netToWinners)}). Check competition data.
         </div>
       )}
@@ -120,7 +125,7 @@ function PrizePoolDisplay({ competition: c }: { competition: Competition }) {
       {/* Funding status */}
       <div className="mt-4 flex items-center gap-2">
         <span className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+          "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium",
           prizePool.fundingStatus === "paid_out"
             ? "bg-emerald-50 text-emerald-700"
             : "bg-blue-50 text-blue-700"
@@ -157,7 +162,7 @@ function TimelineVisual({ competition: c }: { competition: Competition }) {
   const currentIndex = statusOrder.indexOf(c.status);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
+    <div className="border border-gray-200 bg-white p-6">
       <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Timeline</h2>
       <div className="mt-4 space-y-4">
         {stages.map((stage, i) => {
@@ -167,7 +172,7 @@ function TimelineVisual({ competition: c }: { competition: Competition }) {
             <div key={stage.key} className="flex items-start gap-3">
               <div className="flex flex-col items-center">
                 <div className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-full border-2",
+                  "flex h-6 w-6 items-center justify-center border-2",
                   isPast ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white",
                   isCurrent && "ring-2 ring-emerald-200"
                 )}>
@@ -198,6 +203,12 @@ function TimelineVisual({ competition: c }: { competition: Competition }) {
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const competition = await getCompetitionBySlug(slug).catch(() => undefined);
+  const [registrationCount, initialQuestions] = competition
+    ? await Promise.all([
+        getRegistrationCount(competition.id).catch(() => 0),
+        getQuestions(competition.id).catch(() => []),
+      ])
+    : [0, []];
 
   if (!competition) {
     notFound();
@@ -221,7 +232,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
           alt={c.title}
           className="h-full w-full object-cover opacity-60"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-gray-900/80 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
           <div className="mb-3 flex items-center gap-3">
             <StatusBadge status={c.status} />
@@ -248,7 +259,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             {/* Deadline alert */}
             {isOpen && (
               <div className={cn(
-                "flex items-center gap-3 rounded-lg px-4 py-3",
+                "flex items-center gap-3 px-4 py-3",
                 urgent ? "bg-red-50" : "bg-blue-50"
               )}>
                 <svg className={cn("h-5 w-5", urgent ? "text-red-500" : "text-blue-500")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -307,7 +318,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                       href={file.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
+                      className="flex items-center gap-3 border border-gray-200 bg-gray-50 px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
                     >
                       <svg className="h-5 w-5 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -333,8 +344,8 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                 <h2 className="text-lg font-semibold text-gray-900">Jury</h2>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   {c.jury.map((member, i) => (
-                    <div key={i} className="flex gap-3 rounded-lg border border-gray-100 p-3">
-                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-200">
+                    <div key={i} className="flex gap-3 border border-gray-100 p-3">
+                      <div className="h-12 w-12 shrink-0 overflow-hidden bg-gray-200">
                         {member.photo ? (
                           <img src={member.photo} alt={member.name} className="h-full w-full object-cover" />
                         ) : (
@@ -344,16 +355,21 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                         )}
                       </div>
                       <div>
-                        {member.submitterSlug ? (
-                          <Link
-                            href={`/submitters/${member.submitterSlug}`}
-                            className="text-sm font-semibold text-gray-900 hover:underline decoration-gray-300"
-                          >
-                            {member.name}
-                          </Link>
-                        ) : (
-                          <div className="text-sm font-semibold text-gray-900">{member.name}</div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {member.submitterSlug ? (
+                            <Link
+                              href={`/submitters/${member.submitterSlug}`}
+                              className="text-sm font-semibold text-gray-900 hover:underline decoration-gray-300"
+                            >
+                              {member.name}
+                            </Link>
+                          ) : (
+                            <span className="text-sm font-semibold text-gray-900">{member.name}</span>
+                          )}
+                          {member.isChair && (
+                            <span className="bg-gray-900 px-1.5 py-0.5 text-[10px] font-medium text-white">Chair</span>
+                          )}
+                        </div>
                         {(member.title || member.organization) && (
                           <div className="text-xs text-gray-500">
                             {[member.title, member.organization].filter(Boolean).join(", ")}
@@ -377,9 +393,9 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                       <span className="font-medium text-gray-700">{criterion.name}</span>
                       <span className="text-gray-500">{criterion.weight}%</span>
                     </div>
-                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div className="mt-1 h-2 w-full overflow-hidden bg-gray-100">
                       <div
-                        className="h-full rounded-full bg-gray-800"
+                        className="h-full bg-gray-800"
                         style={{ width: `${criterion.weight}%` }}
                       />
                     </div>
@@ -396,8 +412,8 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
               <h2 className="text-lg font-semibold text-gray-900">Deliverables</h2>
               <div className="mt-3 space-y-2">
                 {c.deliverables.map((d, i) => (
-                  <div key={i} className="flex items-start gap-3 rounded-lg bg-gray-50 p-3">
-                    <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div key={i} className="flex items-start gap-3 bg-gray-50 p-3">
+                    <svg className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <div>
@@ -412,6 +428,28 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
               </div>
             </section>
 
+            {/* Professional Fees */}
+            <section>
+              <div className="border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm font-medium text-blue-900">Professional fees</p>
+                <p className="mt-1 text-sm text-blue-700">
+                  Prize money is recognition for participation in this competition — it is not payment for professional services. If the winning design is selected for commission and construction, the organizer is obligated to pay the winning architect standard professional fees in addition to the competition prize. This is a requirement of the UIA Accord on Competitions.
+                </p>
+              </div>
+            </section>
+
+            {/* Anonymous Judging */}
+            <section>
+              <div className="border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="font-mono text-[0.625rem] uppercase tracking-widest text-emerald-700 mt-0.5">✓ Anonymous Judging</span>
+                </div>
+                <p className="mt-1 text-sm text-emerald-800">
+                  Submitter identities are hidden from the jury until winners are announced — enforced by the platform, not just promised. Counterparti follows the UIA Accord on Competitions.
+                </p>
+              </div>
+            </section>
+
             {/* IP Terms */}
             <section>
               <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
@@ -421,7 +459,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                 )}
               </h2>
               <div className={cn(
-                "mt-3 rounded-lg border p-4",
+                "mt-3 border p-4",
                 c.ipTerms.warningLevel === "none" && "border-emerald-200 bg-emerald-50",
                 c.ipTerms.warningLevel === "info" && "border-blue-200 bg-blue-50",
                 c.ipTerms.warningLevel === "caution" && "border-amber-200 bg-amber-50",
@@ -452,9 +490,9 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                 )}
                 <div className="mt-4 space-y-6">
                   {c.results.winners.map((winner, i) => (
-                    <div key={i} className="overflow-hidden rounded-xl border border-gray-200">
+                    <div key={i} className="overflow-hidden border border-gray-200">
                       {winner.images.length > 0 && (
-                        <div className="aspect-[16/9] overflow-hidden bg-gray-100">
+                        <div className="aspect-video overflow-hidden bg-gray-100">
                           <img src={winner.images[0]} alt={winner.projectTitle} className="h-full w-full object-cover" />
                         </div>
                       )}
@@ -482,7 +520,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                           </blockquote>
                         )}
                         {winner.paidOut && (
-                          <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          <div className="mt-3 inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                             <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
@@ -496,32 +534,20 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
               </section>
             )}
 
-            {/* Lifecycle Updates */}
-            {c.updates && c.updates.length > 0 && (
-              <section>
-                <h2 className="text-lg font-semibold text-gray-900">Story Updates</h2>
-                <div className="mt-4 space-y-4">
-                  {c.updates.map((update, i) => (
-                    <div key={i} className="border-l-2 border-gray-200 pl-4">
-                      <div className="text-xs text-gray-400">{formatDate(update.date)}</div>
-                      <div className="text-xs text-gray-500">by {update.author}</div>
-                      <h3 className="mt-1 text-sm font-semibold text-gray-900">{update.title}</h3>
-                      <p className="mt-1 text-sm text-gray-600">{update.content}</p>
-                      {update.newStatus && (
-                        <StatusBadge status={update.newStatus} className="mt-2" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
+            {/* Q&A */}
+            {isOpen && (
+              <QASection
+                competitionId={c.id}
+                initialQuestions={initialQuestions}
+              />
             )}
           </div>
 
           {/* Sidebar */}
-          <aside className="w-full flex-shrink-0 space-y-6 lg:w-80">
+          <aside className="w-full shrink-0 space-y-6 lg:w-80">
             {/* Draft banner */}
             {c.status === "draft" && (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+              <div className="border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
                 <p className="font-semibold text-gray-800">This competition is not live yet.</p>
                 <p className="mt-1">Fund the escrow from your organizer dashboard, then publish to open submissions.</p>
                 <Link
@@ -535,23 +561,50 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
 
             {/* Actions */}
             {isOpen && (
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
-                <Link href={`/competitions/${c.slug}/submit`} className="block">
-                  <Button className="w-full" size="lg">
-                    Submit entry
-                  </Button>
-                </Link>
-                <p className="mt-2 text-center text-xs text-gray-400">
-                  Free to submit, always
-                </p>
+              <div className="border border-gray-200 bg-white p-4 space-y-3">
+                <RegisterButton competitionId={c.id} initialCount={registrationCount} />
+                <div className="border-t border-gray-100 pt-3">
+                  <Link href={`/competitions/${c.slug}/submit`} className="block">
+                    <Button className="w-full" variant="outline">
+                      Submit entry
+                    </Button>
+                  </Link>
+                  <p className="mt-2 text-center text-xs text-gray-400">
+                    Free to submit, always
+                  </p>
+                </div>
               </div>
             )}
 
             <PrizePoolDisplay competition={c} />
             <TimelineVisual competition={c} />
 
+            {/* My entry panel — visibility toggle (announced) or withdraw (open) */}
+            {(c.status === "open" || c.status === "announced") && (
+              <MyEntryPanel
+                competitionId={c.id}
+                competitionStatus={c.status}
+                winners={c.results?.winners ?? []}
+              />
+            )}
+
+            {/* Cancellation policy */}
+            {c.status !== "announced" && (
+              <div className="border border-gray-200 bg-white p-5">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Cancellation policy</h2>
+                <div className="mt-3 space-y-2 text-xs text-gray-500">
+                  {c.prizePool.isOpenPool ? (
+                    <p>Open pool competitions cannot be cancelled after publication — this protects contributors who funded the prize. Funds are locked in escrow until winners are paid out.</p>
+                  ) : (
+                    <p>If this competition is cancelled, 50% of the prize pool is distributed to registered designers (less the 5% platform fee) and 50% is returned to the organizer (less the 5% platform fee). Funds are held in escrow and cannot be withdrawn unilaterally.</p>
+                  )}
+                  <p>Registered designers are always notified of any deadline changes or competition updates.</p>
+                </div>
+              </div>
+            )}
+
             {/* Organizer */}
-            <div className="rounded-xl border border-gray-200 bg-white p-6">
+            <div className="border border-gray-200 bg-white p-6">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Organizer</h2>
               <div className="mt-3">
                 <div className="flex items-center gap-2">
@@ -576,7 +629,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             </div>
 
             {/* Details */}
-            <div className="rounded-xl border border-gray-200 bg-white p-6">
+            <div className="border border-gray-200 bg-white p-6">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Details</h2>
               <dl className="mt-3 space-y-3 text-sm">
                 <div className="flex justify-between">

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -55,14 +55,14 @@ export function ImageUpload({ value, onChange, uploadSessionId }: ImageUploadPro
   return (
     <div className="space-y-2">
       {value ? (
-        <div className="group relative overflow-hidden rounded-lg border border-gray-200">
+        <div className="group relative overflow-hidden  border border-gray-200">
           <img src={value} alt="Cover" className="h-48 w-full object-cover" />
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
           >
-            <span className="rounded-md bg-white px-3 py-1.5 text-xs font-medium text-gray-900">
+            <span className=" bg-white px-3 py-1.5 text-xs font-medium text-gray-900">
               Replace photo
             </span>
           </button>
@@ -73,14 +73,14 @@ export function ImageUpload({ value, onChange, uploadSessionId }: ImageUploadPro
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
           className={cn(
-            "flex h-40 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors",
+            "flex h-40 w-full flex-col items-center justify-center gap-2  border-2 border-dashed transition-colors",
             uploading
               ? "cursor-wait border-gray-200 bg-gray-50"
               : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50"
           )}
         >
           {uploading ? (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+            <div className="h-5 w-5 animate-spin  border-2 border-gray-300 border-t-gray-600" />
           ) : (
             <>
               <svg className="h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

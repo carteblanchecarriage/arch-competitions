@@ -1,13 +1,9 @@
-import type { Competition, CompetitionStatus, CompetitionType, EligibilityType } from "@/data/types";
+import type { Competition, CompetitionStatus } from "@/data/types";
 import { daysUntil } from "./utils";
 
 export interface FilterState {
   search: string;
-  types: CompetitionType[];
   statuses: CompetitionStatus[];
-  eligibility: EligibilityType[];
-  regions: string[];
-  tags: string[];
   prizeMin: number | null;
   prizeMax: number | null;
   deadlineRange: "week" | "month" | "3months" | null;
@@ -16,11 +12,7 @@ export interface FilterState {
 
 export const defaultFilters: FilterState = {
   search: "",
-  types: [],
   statuses: [],
-  eligibility: [],
-  regions: [],
-  tags: [],
   prizeMin: null,
   prizeMax: null,
   deadlineRange: null,
@@ -46,20 +38,8 @@ export function filterCompetitions(
       if (!searchable.includes(q)) return false;
     }
 
-    // Type filter
-    if (filters.types.length > 0 && !filters.types.includes(c.type)) return false;
-
     // Status filter
     if (filters.statuses.length > 0 && !filters.statuses.includes(c.status)) return false;
-
-    // Eligibility filter
-    if (filters.eligibility.length > 0 && !filters.eligibility.includes(c.eligibility)) return false;
-
-    // Region filter
-    if (filters.regions.length > 0 && !filters.regions.includes(c.region)) return false;
-
-    // Tags filter
-    if (filters.tags.length > 0 && !filters.tags.some((t) => c.tags.includes(t))) return false;
 
     // Prize range
     if (filters.prizeMin !== null && c.prizePool.totalAmount < filters.prizeMin) return false;

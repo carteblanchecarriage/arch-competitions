@@ -61,6 +61,8 @@ export interface JuryMember {
   photo?: string;
   bio: string;
   submitterSlug?: string;
+  isChair?: boolean;
+  isArchitect?: boolean;
 }
 
 export interface EvaluationCriterion {

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { SortOption } from "@/lib/filters";
 
@@ -21,7 +21,7 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SortOption)}
-        className="rounded-lg border border-gray-300 bg-white py-1.5 pl-3 pr-8 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+        className=" border border-gray-300 bg-white py-1.5 pl-3 pr-8 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
       >
         {SORT_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 
 export function Footer() {
   return (
@@ -7,11 +7,8 @@ export function Footer() {
         <div className='grid gap-8 sm:grid-cols-3'>
           <div>
             <div className='flex items-center gap-2'>
-              <div className='flex h-7 w-7 items-center justify-center rounded-md bg-gray-900'>
-                <span className='text-xs font-bold text-white'>A</span>
-              </div>
-              <span className='font-semibold text-gray-900'>
-                Arch Competitions
+              <span className='font-bold italic text-gray-900'>
+                Counterparti
               </span>
             </div>
             <p className='mt-3 text-sm text-gray-500'>
@@ -55,6 +52,22 @@ export function Footer() {
                   Blog
                 </Link>
               </li>
+              <li>
+                <Link
+                  href='/faq'
+                  className='text-sm text-gray-500 hover:text-gray-900'
+                >
+                  FAQ
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href='/docs'
+                  className='text-sm text-gray-500 hover:text-gray-900'
+                >
+                  Developer Docs
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -69,7 +82,7 @@ export function Footer() {
         </div>
 
         <div className='mt-10 border-t border-gray-200 pt-6 text-center text-xs text-gray-400'>
-          &copy; {new Date().getFullYear()} Arch Competitions. Built with
+          &copy; {new Date().getFullYear()} Counterparti. Built with
           transparency.
         </div>
       </div>

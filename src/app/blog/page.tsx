@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { getAllPostMetas } from "@/lib/blog";
 import type { Metadata } from "next";
 
@@ -36,7 +36,7 @@ export default function BlogPage() {
           {posts.map((post) => (
             <article key={post.slug} className="py-10">
               {post.image && (
-                <Link href={`/blog/${post.slug}`} className="block mb-5 overflow-hidden rounded-lg">
+                <Link href={`/blog/${post.slug}`} className="block mb-5 overflow-hidden ">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={post.image}
@@ -50,7 +50,7 @@ export default function BlogPage() {
                 {post.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600"
+                    className=" bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600"
                   >
                     {tag}
                   </span>

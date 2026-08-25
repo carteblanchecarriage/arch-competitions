@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +6,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { createCompetition, type TierInput, type JuryInput } from "@/app/actions/competition";
+import { saveDraft, getMyDraft, discardDraft } from "@/app/actions/draft";
 import { searchSubmitters, type SubmitterSearchResult } from "@/app/actions/submitter";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { FileUpload } from "@/components/ui/FileUpload";
@@ -18,18 +19,11 @@ const STEPS = [
   { id: 2, title: "Brief", description: "Your competition brief" },
   { id: 3, title: "Prize Pool", description: "Structure the prize" },
   { id: 4, title: "Timeline", description: "Registration and submission deadlines" },
-  { id: 5, title: "Jury", description: "Add judges from Arch accounts" },
+  { id: 5, title: "Jury", description: "Add judges from Counterparti accounts" },
   { id: 6, title: "Rights & IP", description: "Protect designers" },
   { id: 7, title: "Review", description: "Preview and publish" },
 ];
 
-const COMPETITION_TYPES = [
-  { value: "open", label: "Open", description: "Anyone can enter" },
-  { value: "student", label: "Student", description: "Students and recent graduates" },
-  { value: "ideas", label: "Ideas", description: "Conceptual — not tied to a specific site" },
-  { value: "invite_only", label: "Invite Only", description: "Selected firms only" },
-  { value: "awards", label: "Awards", description: "Portfolio-based recognition" },
-];
 
 const IP_OPTIONS = [
   {
@@ -90,8 +84,10 @@ interface FormState {
   submissionDeadline: string;
   // Jury
   jury: JuryInput[];
+  juryConflictDeclared: boolean;
   // Rights
   ipTermsType: string;
+  professionalFeesAcknowledged: boolean;
 }
 
 function blankForm(): FormState {
@@ -112,7 +108,9 @@ function blankForm(): FormState {
     registrationDeadline: "",
     submissionDeadline: "",
     jury: [],
+    juryConflictDeclared: false,
     ipTermsType: "retain_all",
+    professionalFeesAcknowledged: false,
   };
 }
 
@@ -130,35 +128,8 @@ function StepBasics({ form, set }: { form: FormState; set: (patch: Partial<FormS
           value={form.title}
           onChange={(e) => set({ title: e.target.value })}
           placeholder="e.g., Reimagining Public Housing"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+          className="mt-1 w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
         />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Competition Type</label>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          {COMPETITION_TYPES.map((t) => (
-            <label
-              key={t.value}
-              className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
-                form.type === t.value ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"
-              )}
-            >
-              <input
-                type="radio"
-                name="type"
-                checked={form.type === t.value}
-                onChange={() => set({ type: t.value })}
-                className="mt-1 border-gray-300 text-gray-900 focus:ring-gray-400"
-              />
-              <div>
-                <div className="text-sm font-medium text-gray-900">{t.label}</div>
-                <div className="text-xs text-gray-500">{t.description}</div>
-              </div>
-            </label>
-          ))}
-        </div>
       </div>
 
       <div>
@@ -170,7 +141,7 @@ function StepBasics({ form, set }: { form: FormState; set: (patch: Partial<FormS
           value={form.shortDescription}
           onChange={(e) => set({ shortDescription: e.target.value })}
           placeholder="One or two sentences summarizing your competition…"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none resize-none"
+          className="mt-1 w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none resize-none"
         />
       </div>
 
@@ -181,7 +152,7 @@ function StepBasics({ form, set }: { form: FormState; set: (patch: Partial<FormS
           value={form.location}
           onChange={(e) => set({ location: e.target.value })}
           placeholder="e.g., New York, NY or Global"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+          className="mt-1 w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
         />
       </div>
 
@@ -215,7 +186,7 @@ function StepBrief({ form, set }: { form: FormState; set: (patch: Partial<FormSt
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg bg-blue-50 p-4">
+      <div className=" bg-blue-50 p-4">
         <p className="text-sm text-blue-700">
           <strong>Tip:</strong> Great briefs are specific about the challenge but open about the solution.
         </p>
@@ -228,7 +199,7 @@ function StepBrief({ form, set }: { form: FormState; set: (patch: Partial<FormSt
           value={form.brief}
           onChange={(e) => set({ brief: e.target.value })}
           placeholder="Describe the challenge, context, and what you're looking for…"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+          className="mt-1 w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
         />
       </div>
 
@@ -242,7 +213,7 @@ function StepBrief({ form, set }: { form: FormState; set: (patch: Partial<FormSt
             value={obj}
             onChange={(e) => setObjective(i, e.target.value)}
             placeholder={`Objective ${i + 1}`}
-            className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+            className="mt-2 w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
           />
         ))}
         <button
@@ -260,7 +231,7 @@ function StepBrief({ form, set }: { form: FormState; set: (patch: Partial<FormSt
           value={form.siteContext}
           onChange={(e) => set({ siteContext: e.target.value })}
           placeholder="Describe the site and physical context (or leave blank for ideas competitions)…"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none resize-none"
+          className="mt-1 w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none resize-none"
         />
       </div>
 
@@ -303,17 +274,17 @@ function StepPrize({ form, set }: { form: FormState; set: (patch: Partial<FormSt
   return (
     <div className="space-y-6">
       {/* Open pool toggle */}
-      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 p-4">
+      <label className="flex cursor-pointer items-start gap-3  border border-purple-200 bg-purple-50 p-4">
         <input
           type="checkbox"
           checked={form.isOpenPool}
           onChange={(e) => set({ isOpenPool: e.target.checked })}
-          className="mt-0.5 rounded border-purple-300 text-purple-600 focus:ring-purple-400"
+          className="mt-0.5  border-purple-300 text-purple-600 focus:ring-purple-400"
         />
         <div>
           <div className="text-sm font-medium text-purple-900">Enable Open Prize Pool</div>
           <p className="text-xs text-purple-700">
-            Anyone can contribute to grow the prize fund. Prize splits stay fixed; amounts scale with the pool.
+            Anyone can contribute to grow the prize fund. Prize splits stay fixed; amounts scale with the pool. Open pool competitions cannot be cancelled — contributors need that guarantee.
           </p>
         </div>
       </label>
@@ -333,7 +304,7 @@ function StepPrize({ form, set }: { form: FormState; set: (patch: Partial<FormSt
               onChange={(e) => set({ totalAmount: e.target.value })}
               placeholder="10,000"
               min={100}
-              className="w-full rounded-lg border border-gray-300 py-2.5 pl-8 pr-4 text-sm focus:border-gray-400 focus:outline-none"
+              className="w-full  border border-gray-300 py-2.5 pl-8 pr-4 text-sm focus:border-gray-400 focus:outline-none"
             />
           </div>
         </div>
@@ -364,7 +335,7 @@ function StepPrize({ form, set }: { form: FormState; set: (patch: Partial<FormSt
                 type="text"
                 value={tier.place}
                 onChange={(e) => setTier(i, { place: e.target.value })}
-                className="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+                className="w-28  border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
               />
               <div className="relative flex-1">
                 <input
@@ -374,13 +345,13 @@ function StepPrize({ form, set }: { form: FormState; set: (patch: Partial<FormSt
                   min={0}
                   max={100}
                   step={0.5}
-                  className="w-full rounded-lg border border-gray-200 py-2 pl-3 pr-7 text-sm focus:border-gray-400 focus:outline-none"
+                  className="w-full  border border-gray-200 py-2 pl-3 pr-7 text-sm focus:border-gray-400 focus:outline-none"
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-400">%</span>
               </div>
               {!form.isOpenPool && form.totalAmount && (
                 <span className="w-24 text-right text-xs text-gray-400">
-                  ≈ ${Math.round(Number(form.totalAmount) * (1 - PLATFORM_FEE / 100) * (tier.percent / 100)).toLocaleString()}
+                  ~${Math.round(Number(form.totalAmount) * (1 - PLATFORM_FEE / 100) * (tier.percent / 100)).toLocaleString()}
                 </span>
               )}
               {form.tiers.length > 1 && (
@@ -389,7 +360,7 @@ function StepPrize({ form, set }: { form: FormState; set: (patch: Partial<FormSt
                   className="text-gray-300 hover:text-red-400"
                   aria-label="Remove tier"
                 >
-                  ✕
+                  ×
                 </button>
               )}
             </div>
@@ -406,27 +377,27 @@ function StepPrize({ form, set }: { form: FormState; set: (patch: Partial<FormSt
 
       {/* Fee transparency */}
       {!form.isOpenPool && form.totalAmount && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+        <div className=" border border-gray-200 bg-gray-50 p-4 text-sm">
           <div className="flex justify-between text-gray-600">
             <span>Prize pool</span>
             <span>${Number(form.totalAmount).toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-gray-500">
             <span>Platform fee ({PLATFORM_FEE}%)</span>
-            <span>−${Math.round(Number(form.totalAmount) * PLATFORM_FEE / 100).toLocaleString()}</span>
+            <span>-${Math.round(Number(form.totalAmount) * PLATFORM_FEE / 100).toLocaleString()}</span>
           </div>
           <div className="mt-1 flex justify-between border-t border-gray-200 pt-1 font-semibold">
             <span>Net to winners</span>
             <span>${Math.round(Number(form.totalAmount) * netPercent / 100).toLocaleString()}</span>
           </div>
           <p className="mt-2 text-xs text-gray-400">
-            Fee is taken at payout only. If cancelled, all funds are returned in full.
+            5% platform fee applies to all distributions. If you cancel: 50% goes to registered designers (less 5%), 50% returned to you (less 5%).
           </p>
         </div>
       )}
 
       {!tierValid && (
-        <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className=" bg-red-50 px-3 py-2 text-xs text-red-700">
           Prize splits must total exactly 100%. Currently at {tierSum.toFixed(1)}%.
         </div>
       )}
@@ -435,6 +406,11 @@ function StepPrize({ form, set }: { form: FormState; set: (patch: Partial<FormSt
 }
 
 function StepTimeline({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
+  const weeksUntilDeadline = form.submissionDeadline
+    ? Math.floor((new Date(form.submissionDeadline).getTime() - Date.now()) / (7 * 24 * 60 * 60 * 1000))
+    : null;
+  const tooSoon = weeksUntilDeadline !== null && weeksUntilDeadline < 8;
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -444,7 +420,7 @@ function StepTimeline({ form, set }: { form: FormState; set: (patch: Partial<For
             type="date"
             value={form.registrationDeadline}
             onChange={(e) => set({ registrationDeadline: e.target.value })}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+            className="mt-1 w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
           />
         </div>
         <div>
@@ -455,10 +431,17 @@ function StepTimeline({ form, set }: { form: FormState; set: (patch: Partial<For
             type="date"
             value={form.submissionDeadline}
             onChange={(e) => set({ submissionDeadline: e.target.value })}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+            className="mt-1 w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
           />
         </div>
       </div>
+
+      {tooSoon && (
+        <div className="border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <strong>Short preparation window:</strong> The UIA recommends a minimum of 8 weeks between publication and submission deadline for ideas competitions (12 weeks for project competitions). Your current deadline gives designers only {weeksUntilDeadline} {weeksUntilDeadline === 1 ? "week" : "weeks"}. A compressed timeline reduces participation quality and may deter experienced designers.
+        </div>
+      )}
+
       <p className="text-xs text-gray-400">
         Judging and announcement dates can be added after the competition goes live.
       </p>
@@ -488,9 +471,17 @@ function StepJury({ form, set }: { form: FormState; set: (patch: Partial<FormSta
   function addJuror(s: SubmitterSearchResult) {
     if (form.jury.some((j) => j.submitterSlug === s.slug)) return;
     const location = [s.city, s.country].filter(Boolean).join(", ");
-    set({ jury: [...form.jury, { submitterSlug: s.slug, name: s.name, photo: s.photo, bio: s.bio, location }] });
+    set({ jury: [...form.jury, { submitterSlug: s.slug, name: s.name, photo: s.photo, bio: s.bio, location, isChair: false, isArchitect: false }] });
     setQuery("");
     setResults([]);
+  }
+
+  function setJurorChair(slug: string) {
+    set({ jury: form.jury.map((j) => ({ ...j, isChair: j.submitterSlug === slug })) });
+  }
+
+  function toggleJurorArchitect(slug: string) {
+    set({ jury: form.jury.map((j) => j.submitterSlug === slug ? { ...j, isArchitect: !j.isArchitect } : j) });
   }
 
   function removeJuror(i: number) {
@@ -499,9 +490,9 @@ function StepJury({ form, set }: { form: FormState; set: (patch: Partial<FormSta
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg bg-blue-50 p-4">
+      <div className=" bg-blue-50 p-4">
         <p className="text-sm text-blue-700">
-          Jurors must have an account on Arch. Search by name to find and add them.
+          Jurors must have an account on Counterparti. Search by name to find and add them.
           You can also skip this step and add jurors after publishing.
         </p>
       </div>
@@ -516,15 +507,15 @@ function StepJury({ form, set }: { form: FormState; set: (patch: Partial<FormSta
             onChange={(e) => setQuery(e.target.value)}
             onBlur={() => setTimeout(() => setResults([]), 150)}
             placeholder="Name…"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+            className="w-full  border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
           />
           {searching && (
             <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+              <div className="h-4 w-4 animate-spin  border-2 border-gray-300 border-t-gray-600" />
             </div>
           )}
           {results.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute z-10 mt-1 w-full overflow-hidden  border border-gray-200 bg-white shadow-lg">
               {results.map((s) => {
                 const already = form.jury.some((j) => j.submitterSlug === s.slug);
                 return (
@@ -537,7 +528,7 @@ function StepJury({ form, set }: { form: FormState; set: (patch: Partial<FormSta
                       already ? "cursor-default opacity-40" : "hover:bg-gray-50"
                     )}
                   >
-                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded bg-gray-200">
+                    <div className="h-8 w-8 shrink-0 overflow-hidden  bg-gray-200">
                       {s.photo && <img src={s.photo} alt={s.name} className="h-full w-full object-cover" />}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -556,27 +547,82 @@ function StepJury({ form, set }: { form: FormState; set: (patch: Partial<FormSta
       {/* Juror list */}
       {form.jury.length > 0 ? (
         <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700">Jury ({form.jury.length})</div>
+          <div className="flex items-baseline justify-between">
+            <div className="text-sm font-medium text-gray-700">Jury ({form.jury.length})</div>
+            {form.jury.length > 0 && (() => {
+              const architects = form.jury.filter((j) => j.isArchitect).length;
+              const required = Math.floor(form.jury.length / 2) + 1;
+              return architects < required ? (
+                <span className="text-xs text-amber-600">{architects}/{form.jury.length} architects — need {required} for UIA majority</span>
+              ) : (
+                <span className="text-xs text-emerald-600">✓ {architects}/{form.jury.length} architects (UIA majority met)</span>
+              );
+            })()}
+          </div>
           {form.jury.map((j, i) => (
-            <div key={j.submitterSlug} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
-              <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-gray-100">
-                {j.photo
-                  ? <img src={j.photo} alt={j.name} className="h-full w-full object-cover" />
-                  : <div className="flex h-full w-full items-center justify-center text-sm font-bold text-gray-400">{j.name.charAt(0)}</div>
-                }
+            <div key={j.submitterSlug} className="border border-gray-200 p-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 overflow-hidden bg-gray-100">
+                  {j.photo
+                    ? <img src={j.photo} alt={j.name} className="h-full w-full object-cover" />
+                    : <div className="flex h-full w-full items-center justify-center text-sm font-bold text-gray-400">{j.name.charAt(0)}</div>
+                  }
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900">{j.name}</span>
+                    {j.isChair && <span className="bg-gray-900 px-1.5 py-0.5 text-[10px] font-medium text-white">Chair</span>}
+                  </div>
+                  {j.location && <div className="text-xs text-gray-500">{j.location}</div>}
+                </div>
+                <button onClick={() => removeJuror(i)} className="text-gray-300 hover:text-red-400" aria-label="Remove">
+                  ×
+                </button>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-gray-900">{j.name}</div>
-                {j.location && <div className="text-xs text-gray-500">{j.location}</div>}
+              <div className="mt-2 flex flex-wrap gap-4 pl-13">
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={!!j.isArchitect}
+                    onChange={() => toggleJurorArchitect(j.submitterSlug)}
+                    className="border-gray-300"
+                  />
+                  Licensed architect
+                </label>
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-600">
+                  <input
+                    type="radio"
+                    name="jury-chair"
+                    checked={!!j.isChair}
+                    onChange={() => setJurorChair(j.submitterSlug)}
+                    className="border-gray-300"
+                  />
+                  Jury chair
+                </label>
               </div>
-              <button onClick={() => removeJuror(i)} className="text-gray-300 hover:text-red-400" aria-label="Remove">
-                ✕
-              </button>
             </div>
           ))}
         </div>
       ) : (
         <p className="text-center text-sm text-gray-400">No jurors added yet.</p>
+      )}
+
+      {/* Conflict-of-interest declaration */}
+      {form.jury.length > 0 && (
+        <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-gray-50 p-4">
+          <input
+            type="checkbox"
+            checked={form.juryConflictDeclared}
+            onChange={(e) => set({ juryConflictDeclared: e.target.checked })}
+            className="mt-0.5 border-gray-300"
+          />
+          <div>
+            <div className="text-sm font-medium text-gray-900">Conflict-of-interest declaration</div>
+            <p className="mt-0.5 text-xs text-gray-500">
+              I confirm that all listed jurors are independent — they have no personal, professional, or financial relationship with the organizer or any likely competitor that could compromise impartiality. This is required by the UIA Accord on Competitions.
+            </p>
+          </div>
+        </label>
       )}
     </div>
   );
@@ -585,10 +631,17 @@ function StepJury({ form, set }: { form: FormState; set: (patch: Partial<FormSta
 function StepRights({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
   return (
     <div className="space-y-6">
-      <div className="rounded-lg bg-emerald-50 p-4">
+      <div className=" bg-emerald-50 p-4">
         <p className="text-sm text-emerald-800">
           <strong>Our default:</strong> Designers retain all rights.
           We believe creators should own their ideas.
+        </p>
+      </div>
+
+      <div className="border border-blue-200 bg-blue-50 p-4">
+        <p className="text-sm font-medium text-blue-900">UIA requirement: Professional fees</p>
+        <p className="mt-1 text-xs text-blue-700">
+          If the winning design is selected for commission and construction, the winner must receive standard professional fees in addition to the prize. The prize is recognition for the competition — it is not payment for professional services. This is mandatory under the UIA Accord on Competitions.
         </p>
       </div>
 
@@ -597,7 +650,7 @@ function StepRights({ form, set }: { form: FormState; set: (patch: Partial<FormS
           <label
             key={option.value}
             className={cn(
-              "flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+              "flex cursor-pointer items-start gap-3  border p-4 transition-colors",
               form.ipTermsType === option.value ? "border-gray-900 bg-gray-50" : "hover:bg-gray-50",
               option.warningLevel === "none" && form.ipTermsType !== option.value && "border-emerald-200",
               option.warningLevel === "info" && form.ipTermsType !== option.value && "border-blue-200",
@@ -615,12 +668,12 @@ function StepRights({ form, set }: { form: FormState; set: (patch: Partial<FormS
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-900">{option.label}</span>
                 {option.recommended && (
-                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+                  <span className=" bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
                     Recommended
                   </span>
                 )}
                 {option.warningLevel === "caution" && (
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                  <span className=" bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
                     Designers will see a warning
                   </span>
                 )}
@@ -630,6 +683,20 @@ function StepRights({ form, set }: { form: FormState; set: (patch: Partial<FormS
           </label>
         ))}
       </div>
+      <label className="flex cursor-pointer items-start gap-3 border border-gray-900 bg-gray-50 p-4">
+        <input
+          type="checkbox"
+          checked={form.professionalFeesAcknowledged}
+          onChange={(e) => set({ professionalFeesAcknowledged: e.target.checked })}
+          className="mt-0.5 border-gray-300"
+        />
+        <div>
+          <div className="text-sm font-medium text-gray-900">I acknowledge the professional fees obligation</div>
+          <p className="mt-0.5 text-xs text-gray-500">
+            If I commission the winning design for construction, I will pay the winning architect full professional fees at standard rates, separate from and in addition to the competition prize.
+          </p>
+        </div>
+      </label>
     </div>
   );
 }
@@ -648,6 +715,10 @@ function StepReview({
   const tierSum = form.tiers.reduce((s, t) => s + (Number(t.percent) || 0), 0);
   const tierValid = Math.abs(tierSum - 100) < 0.01;
 
+  const architectCount = form.jury.filter((j) => j.isArchitect).length;
+  const architectMajority = form.jury.length === 0 || architectCount >= Math.floor(form.jury.length / 2) + 1;
+  const chairDesignated = form.jury.length === 0 || form.jury.some((j) => j.isChair);
+
   const checks = [
     { label: "Competition title", ok: !!form.title },
     { label: "Short description", ok: !!form.shortDescription },
@@ -655,19 +726,25 @@ function StepReview({
     { label: "Prize splits total 100%", ok: tierValid },
     { label: "Fixed pool amount set", ok: form.isOpenPool || !!form.totalAmount },
     { label: "IP terms selected", ok: !!form.ipTermsType },
+    { label: "Professional fees obligation acknowledged (UIA)", ok: form.professionalFeesAcknowledged },
+    ...(form.jury.length > 0 ? [
+      { label: "Jury chair designated (UIA)", ok: chairDesignated },
+      { label: `Architect majority on jury — ${architectCount}/${form.jury.length} (UIA)`, ok: architectMajority },
+      { label: "Jury conflict-of-interest declared (UIA)", ok: form.juryConflictDeclared },
+    ] : []),
   ];
 
   const allGood = checks.every((c) => c.ok);
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-gray-200 p-4">
+      <div className=" border border-gray-200 p-4">
         <h3 className="text-sm font-semibold text-gray-700">Checklist</h3>
         <div className="mt-3 space-y-2">
           {checks.map((item, i) => (
             <div key={i} className="flex items-center gap-2 text-sm">
               <div className={cn(
-                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                "flex h-5 w-5 shrink-0 items-center justify-center ",
                 item.ok ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-500"
               )}>
                 {item.ok ? (
@@ -687,7 +764,7 @@ function StepReview({
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+        <div className=" bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
       )}
 
       <div className="text-center">
@@ -697,12 +774,12 @@ function StepReview({
           disabled={!allGood || isPending}
           className="w-full sm:w-auto"
         >
-          {isPending ? "Creating competition…" : form.isOpenPool ? "Publish (Open Pool)" : "Publish Competition"}
+          {isPending ? "Creating competition…" : "Create Competition"}
         </Button>
         <p className="mt-2 text-xs text-gray-400">
           {form.isOpenPool
-            ? "An escrow is deployed and your competition goes live immediately."
-            : "Your competition goes live. You'll fund the prize pool from your wallet next."}
+            ? "This creates a draft and deploys the escrow. It stays hidden from designers until at least one contribution lands and you publish it from your dashboard."
+            : "This creates a draft and deploys the escrow. It stays hidden from designers until you fund the prize pool and publish it from your dashboard."}
         </p>
       </div>
     </div>
@@ -718,9 +795,42 @@ export default function CreatePage() {
   const [form, setFormRaw] = useState<FormState>(blankForm());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [hasDraft, setHasDraft] = useState(false);
+
+  // Load existing draft on auth
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    getAccessToken().then(async (token) => {
+      if (!token) return;
+      const draft = await getMyDraft(token).catch(() => null);
+      if (draft) {
+        setFormRaw((f) => ({ ...f, ...draft.data }));
+        setHasDraft(true);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, authenticated]);
 
   function set(patch: Partial<FormState>) {
     setFormRaw((f) => ({ ...f, ...patch }));
+  }
+
+  function handleSaveDraft() {
+    setDraftStatus("saving");
+    startTransition(async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) { login(); return; }
+        await saveDraft(token, form);
+        setHasDraft(true);
+        setDraftStatus("saved");
+        setTimeout(() => setDraftStatus("idle"), 2500);
+      } catch {
+        setDraftStatus("error");
+        setTimeout(() => setDraftStatus("idle"), 3000);
+      }
+    });
   }
 
   function handleSubmit() {
@@ -749,7 +859,10 @@ export default function CreatePage() {
           ipTermsType: form.ipTermsType,
           attachments: form.attachments,
           jury: form.jury,
+          professionalFeesAcknowledged: form.professionalFeesAcknowledged,
         });
+        // Clear draft on successful publish
+        await discardDraft(token).catch(() => {});
         router.push(`/competitions/${slug}`);
       } catch (e) {
         setSubmitError(e instanceof Error ? e.message : String(e));
@@ -761,7 +874,7 @@ export default function CreatePage() {
   if (!ready) {
     return (
       <main className="mx-auto max-w-md px-4 py-24 text-center sm:px-6">
-        <div className="mx-auto h-8 w-48 animate-pulse rounded-lg bg-gray-100" />
+        <div className="mx-auto h-8 w-48 animate-pulse  bg-gray-100" />
       </main>
     );
   }
@@ -802,7 +915,7 @@ export default function CreatePage() {
               <button
                 onClick={() => setStep(i)}
                 className={cn(
-                  "flex w-full flex-col rounded-lg border px-3 py-2 text-left transition-colors",
+                  "flex w-full flex-col  border px-3 py-2 text-left transition-colors",
                   i === step
                     ? "border-gray-900 bg-gray-900 text-white"
                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
@@ -817,26 +930,40 @@ export default function CreatePage() {
       </nav>
 
       {/* Step content */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 sm:p-8">
+      <div className=" border border-gray-200 bg-white p-6 sm:p-8">
         <h2 className="mb-1 text-lg font-semibold text-gray-900">{STEPS[step].title}</h2>
         <p className="mb-6 text-sm text-gray-500">{STEPS[step].description}</p>
         {stepComponents[step]}
       </div>
 
       {/* Navigation */}
-      <div className="mt-6 flex justify-between">
+      <div className="mt-6 flex items-center justify-between gap-4">
         <Button
           variant="ghost"
           onClick={() => setStep(Math.max(0, step - 1))}
           disabled={step === 0}
         >
-          ← Previous
+          Previous
         </Button>
-        {step < STEPS.length - 1 && (
-          <Button onClick={() => setStep(step + 1)}>
-            Next →
-          </Button>
-        )}
+
+        <div className="flex items-center gap-3">
+          {/* Save draft — available from step 1 once there's a title */}
+          {form.title.trim() && (
+            <button
+              onClick={handleSaveDraft}
+              disabled={isPending || draftStatus === "saving"}
+              className={`text-xs disabled:opacity-40 transition-colors ${draftStatus === "error" ? "text-red-500" : "text-gray-400 hover:text-gray-700"}`}
+            >
+              {draftStatus === "saving" ? "Saving…" : draftStatus === "saved" ? "✓ Draft saved" : draftStatus === "error" ? "Save failed — try again" : "Save draft"}
+            </button>
+          )}
+
+          {step < STEPS.length - 1 && (
+            <Button onClick={() => setStep(step + 1)}>
+              Next
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

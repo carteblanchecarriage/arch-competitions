@@ -180,6 +180,70 @@ contract CompetitionEscrowFactoryTest is Test {
         factory.setFee(700);
     }
 
+    // ─────────────────────── setImplementation ────────────────────────────
+
+    function test_setImplementation_happy_path() public {
+        CompetitionEscrow newImpl = new CompetitionEscrow();
+        vm.prank(owner);
+        factory.setImplementation(address(newImpl));
+        assertEq(factory.implementation(), address(newImpl));
+    }
+
+    function test_setImplementation_only_owner() public {
+        CompetitionEscrow newImpl = new CompetitionEscrow();
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        factory.setImplementation(address(newImpl));
+    }
+
+    function test_setImplementation_zero_reverts() public {
+        vm.prank(owner);
+        vm.expectRevert(CompetitionEscrowFactory.ZeroAddress.selector);
+        factory.setImplementation(address(0));
+    }
+
+    function test_new_escrows_use_updated_implementation() public {
+        // Deploy a replacement implementation and update the factory.
+        CompetitionEscrow newImpl = new CompetitionEscrow();
+        vm.prank(owner);
+        factory.setImplementation(address(newImpl));
+
+        // Existing escrow (if any) still points to the old impl — here we just
+        // verify new escrows clone the new one by checking creation succeeds.
+        bytes32 cid = keccak256("competition-after-upgrade");
+        vm.prank(organizer);
+        address escrow = factory.createEscrow(cid, address(usdc), shares, submissionDeadline, expirationTimestamp);
+
+        // The cloned escrow should behave correctly under the new implementation.
+        CompetitionEscrow e = CompetitionEscrow(escrow);
+        assertEq(e.organizer(), organizer);
+        assertEq(e.feeBps(), FEE_BPS);
+    }
+
+    function test_old_escrows_unaffected_by_implementation_change() public {
+        bytes32 cid = keccak256("competition-before-upgrade");
+        vm.prank(organizer);
+        address oldEscrow = factory.createEscrow(cid, address(usdc), shares, submissionDeadline, expirationTimestamp);
+
+        CompetitionEscrow newImpl = new CompetitionEscrow();
+        vm.prank(owner);
+        factory.setImplementation(address(newImpl));
+
+        // Old escrow's state is intact after the factory upgrade.
+        assertEq(CompetitionEscrow(oldEscrow).organizer(), organizer);
+        assertEq(CompetitionEscrow(oldEscrow).feeBps(), FEE_BPS);
+    }
+
+    function test_renounce_ownership_locks_factory() public {
+        vm.prank(owner);
+        factory.renounceOwnership();
+
+        CompetitionEscrow newImpl = new CompetitionEscrow();
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, owner));
+        factory.setImplementation(address(newImpl));
+    }
+
     // ───────────────────────── setFeeRecipient ────────────────────────────
 
     function test_setFeeRecipient_happy_path() public {

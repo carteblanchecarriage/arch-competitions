@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/Button";
+﻿import { Button } from "@/components/ui/Button";
 
 export default function AboutPage() {
   return (
@@ -6,7 +6,7 @@ export default function AboutPage() {
       {/* Hero */}
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-          Competitions should work for designers.
+          Competitions should work for everyone.
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-500">
           The architecture competition industry is broken. Designers pay to enter, prize payouts
@@ -40,7 +40,7 @@ export default function AboutPage() {
                 "Many competitions quietly claim broad rights over all submissions. Designers hand over months of work without realizing they've signed away their rights.",
             },
           ].map((item, i) => (
-            <div key={i} className="rounded-lg border border-gray-200 p-5">
+            <div key={i} className=" border border-gray-200 p-5">
               <h3 className="font-semibold text-gray-900">{item.title}</h3>
               <p className="mt-2 text-sm text-gray-600">{item.description}</p>
             </div>
@@ -61,7 +61,7 @@ export default function AboutPage() {
             {
               title: "Free to create",
               description:
-                "No listing fees. The only requirement is funding a prize pool (minimum $100). Real money escrowed = real competition.",
+                "No listing fees. The only requirement is funding a prize pool (minimum $100). If you cancel, 50% of the prize pool goes to registered designers and 50% is returned to you. Open pool competitions cannot be cancelled at all.",
             },
             {
               title: "Transparent prize pools",
@@ -69,14 +69,29 @@ export default function AboutPage() {
                 "Every competition shows its prize pool in real time — total amount, breakdown by place, funding status, and payout verification.",
             },
             {
+              title: "Prize money is locked in escrow",
+              description:
+                "Once funded, the prize pool cannot be withdrawn or clawed back by the organizer. The money stays for the competition — designers can trust it's real before they invest their time.",
+            },
+            {
               title: "Designers own their work",
               description:
                 "The default IP terms protect designers. No blanket rights grabs. Aggressive terms get visible warnings so designers can make informed decisions.",
             },
             {
-              title: "5% at payout — aligned incentives",
+              title: "Anonymous judging, enforced by the platform",
               description:
-                "We take a transparent 5% when prizes are paid out. If a competition is cancelled, no fee is taken. We only succeed when competitions succeed.",
+                "Submitter identities are hidden from the jury until winners are announced — not just promised in the brief, but enforced at the database level. The organizer cannot see who submitted what until they hit announce. This follows the UIA Accord on Competitions and eliminates one of the most common sources of unfairness in the industry.",
+            },
+            {
+              title: "5% on every distribution — always transparent",
+              description:
+                "We take a flat 5% on every fund flow: prize payouts, cancellation splits, and lapsed-deadline distributions. No hidden fees, no exceptions. You always see exactly what goes where before anything moves.",
+            },
+            {
+              title: "Designers are protected from inaction",
+              description:
+                "After a competition closes, organizers and jurors have 30 days to select a winner. If that window passes with no decision, anyone can trigger an equal distribution of the full prize pool to all registered designers.",
             },
             {
               title: "Competitions are beginnings",
@@ -85,7 +100,7 @@ export default function AboutPage() {
             },
           ].map((item, i) => (
             <div key={i} className="flex gap-4">
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-sm font-bold text-white">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center  bg-gray-900 text-sm font-bold text-white">
                 {i + 1}
               </div>
               <div>
@@ -98,7 +113,7 @@ export default function AboutPage() {
       </section>
 
       {/* Open Prize Pools */}
-      <section className="mt-16 rounded-xl bg-gray-950 p-8 text-white sm:p-10">
+      <section className="mt-16  bg-gray-950 p-8 text-white sm:p-10">
         <h2 className="text-2xl font-bold">Open Prize Pools</h2>
         <p className="mt-3 text-gray-300">
           Some competitions address challenges that matter to everyone — public housing,
@@ -106,15 +121,15 @@ export default function AboutPage() {
           the prize fund.
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg bg-white/10 p-4">
+          <div className=" bg-white/10 p-4">
             <div className="text-2xl font-bold">$5k</div>
             <div className="text-sm text-gray-400">Organizer seeds the pool</div>
           </div>
-          <div className="rounded-lg bg-white/10 p-4">
+          <div className=" bg-white/10 p-4">
             <div className="text-2xl font-bold">$50k</div>
             <div className="text-sm text-gray-400">Community grows it</div>
           </div>
-          <div className="rounded-lg bg-white/10 p-4">
+          <div className=" bg-white/10 p-4">
             <div className="text-2xl font-bold">$200k</div>
             <div className="text-sm text-gray-400">Better ideas for everyone</div>
           </div>
@@ -131,14 +146,14 @@ export default function AboutPage() {
         <p className="mt-2 text-gray-500">
           Every competition page shows exactly where the money goes.
         </p>
-        <div className="mt-6 rounded-lg border border-gray-200 p-6">
+        <div className="mt-6  border border-gray-200 p-6">
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Prize pool (funded by organizer + contributors)</span>
               <span className="font-semibold text-gray-900">$10,000</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Platform fee (5%, taken at payout only)</span>
+              <span className="text-gray-600">Platform fee (5%, taken on every distribution)</span>
               <span className="text-gray-500">-$500</span>
             </div>
             <div className="border-t border-gray-200 pt-3">

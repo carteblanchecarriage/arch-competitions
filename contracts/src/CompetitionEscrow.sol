@@ -55,6 +55,7 @@ contract CompetitionEscrow is Initializable, ReentrancyGuard {
     event PrizeClaimed(address indexed winner, uint256 amount);
     event Cancelled(address indexed by);
     event Refunded(address indexed contributor, uint256 amount);
+    event EmergencyWithdraw(address indexed to, uint256 amount);
 
     error InvalidState();
     error NotOrganizer();
@@ -67,7 +68,6 @@ contract CompetitionEscrow is Initializable, ReentrancyGuard {
     error NothingToClaim();
     error NothingToRefund();
     error NotPlatform();
-    error TooEarly();
     error FeeTooHigh();
     error DeadlinesInvalid();
 
@@ -235,5 +235,32 @@ contract CompetitionEscrow is Initializable, ReentrancyGuard {
         token.safeTransfer(msg.sender, amount);
 
         emit Refunded(msg.sender, amount);
+    }
+
+    /// @notice Platform emergency sweep. Moves state to Cancelled (if not
+    ///         already there) then transfers the full token balance to `to`.
+    ///
+    ///         Use when:
+    ///         - A bug or compliance issue prevents normal refund flow.
+    ///         - The escrow needs to be deprecated and funds migrated.
+    ///
+    ///         Not permitted once Resolved — the platform fee is already paid
+    ///         and winners have credited balances; there is nothing to rescue.
+    ///         After this call, contributors should contact support for
+    ///         off-chain reimbursement if they have not already claimed.
+    function emergencyWithdraw(address to) external nonReentrant {
+        if (msg.sender != feeRecipient) revert NotPlatform();
+        if (state == State.Resolved) revert InvalidState();
+        if (to == address(0)) revert ZeroAddress();
+
+        if (state != State.Cancelled) {
+            state = State.Cancelled;
+            emit Cancelled(msg.sender);
+        }
+
+        uint256 balance = token.balanceOf(address(this));
+        if (balance > 0) token.safeTransfer(to, balance);
+
+        emit EmergencyWithdraw(to, balance);
     }
 }

@@ -25,10 +25,10 @@ export default async function OrganizerPage({ params }: { params: Promise<{ slug
           <img
             src={organizer.logo}
             alt={organizer.name}
-            className="h-16 w-16 rounded-lg object-cover bg-gray-100"
+            className="h-16 w-16 object-cover bg-gray-100"
           />
         ) : (
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gray-900">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center bg-gray-900">
             <span className="text-xl font-bold text-white">
               {organizer.name.charAt(0).toUpperCase()}
             </span>
@@ -63,7 +63,7 @@ export default async function OrganizerPage({ params }: { params: Promise<{ slug
       </div>
 
       {/* Stats */}
-      <div className="mt-8 grid grid-cols-3 gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
+      <div className="mt-8 grid grid-cols-3 gap-4 border border-gray-200 bg-gray-50 p-6">
         <div className="text-center">
           <div className="text-2xl font-bold text-gray-900">{competitions.length}</div>
           <div className="text-xs text-gray-500">Competitions</div>
@@ -86,7 +86,7 @@ export default async function OrganizerPage({ params }: { params: Promise<{ slug
           <h2 className="text-lg font-semibold text-gray-900">
             Competitions
             {openCount > 0 && (
-              <span className="ml-2 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+              <span className="ml-2 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
                 {openCount} open
               </span>
             )}

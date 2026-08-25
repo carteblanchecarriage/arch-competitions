@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, useTransition, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { getProfile, saveProfile, type ProfileInput } from "@/app/actions/profile";
+import { getMyDraft, discardDraft, type SavedDraft } from "@/app/actions/draft";
 import { Button } from "@/components/ui/Button";
 import { WithdrawButton } from "@/components/ui/WithdrawButton";
 
@@ -23,6 +24,7 @@ interface ProfileData {
   bio: string;
   website: string;
   yearEstablished: string;
+  contributors: string[];
 }
 
 function blankForm(): ProfileData {
@@ -35,6 +37,7 @@ function blankForm(): ProfileData {
     bio: "",
     website: "",
     yearEstablished: "",
+    contributors: [],
   };
 }
 
@@ -48,247 +51,363 @@ function rowToForm(row: NonNullable<Awaited<ReturnType<typeof getProfile>>>): Pr
     bio: row.bio,
     website: row.website ?? "",
     yearEstablished: row.year_established ? String(row.year_established) : "",
+    contributors: row.type === "studio" ? (row.specialties ?? []) : [],
   };
 }
 
-// ── View mode ──────────────────────────────────────────────────────────────────
+// ── Draft card ─────────────────────────────────────────────────────────────────
 
-function ProfileView({
-  form,
-  onEdit,
+function DraftCard({
+  draft,
+  onDiscard,
+  discarding,
 }: {
-  form: ProfileData;
-  onEdit: () => void;
+  draft: SavedDraft;
+  onDiscard: () => void;
+  discarding: boolean;
 }) {
+  const title = draft.data.title?.trim() || "Untitled draft";
+  const updated = new Date(draft.updatedAt).toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <div className="mb-8 flex items-start justify-between">
+    <div className="border border-dashed border-gray-300 bg-gray-50 p-4">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{form.name}</h1>
-          <p className="mt-1 text-sm capitalize text-gray-500">{form.type}</p>
-          {form.slug && (
-            <Link
-              href={`/submitters/${form.slug}`}
-              className="mt-1 block text-sm text-gray-400 underline decoration-gray-300 hover:text-gray-900"
-            >
-              View public profile
-            </Link>
-          )}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            Draft competition
+          </p>
+          <p className="mt-0.5 text-sm font-medium text-gray-900">{title}</p>
+          <p className="mt-0.5 text-xs text-gray-400">Last saved {updated}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onEdit}>
-          Edit profile
-        </Button>
+        <div className="flex shrink-0 items-center gap-4">
+          <button
+            onClick={onDiscard}
+            disabled={discarding}
+            className="text-xs text-gray-400 hover:text-red-500 disabled:opacity-40 transition-colors"
+          >
+            {discarding ? "Discarding…" : "Discard"}
+          </button>
+          <Link href="/create">
+            <Button size="sm">Continue editing</Button>
+          </Link>
+        </div>
       </div>
-
-      <WithdrawButton />
-
-      <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-6">
-        {/* Location */}
-        {(form.city || form.country) && (
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">Location</div>
-            <div className="mt-1 text-sm text-gray-900">
-              {[form.city, form.country].filter(Boolean).join(", ")}
-            </div>
-          </div>
-        )}
-
-        {/* Bio */}
-        {form.bio && (
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">Bio</div>
-            <p className="mt-1 text-sm leading-relaxed text-gray-700">{form.bio}</p>
-          </div>
-        )}
-
-        {/* Website */}
-        {form.website && (
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">Website</div>
-            <a
-              href={form.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 block text-sm text-gray-900 underline decoration-gray-300 hover:decoration-gray-900"
-            >
-              {form.website.replace(/^https?:\/\//, "")}
-            </a>
-          </div>
-        )}
-
-        {/* Year established */}
-        {form.type === "studio" && form.yearEstablished && (
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">Est.</div>
-            <div className="mt-1 text-sm text-gray-900">{form.yearEstablished}</div>
-          </div>
-        )}
-      </div>
-    </main>
+    </div>
   );
 }
 
-// ── Edit mode ──────────────────────────────────────────────────────────────────
+// ── Inline field helpers ───────────────────────────────────────────────────────
 
-function ProfileEdit({
-  form,
-  setForm,
-  isNew,
-  isPending,
-  saved,
-  onSave,
-  onCancel,
-}: {
-  form: ProfileData;
-  setForm: React.Dispatch<React.SetStateAction<ProfileData>>;
-  isNew: boolean;
-  isPending: boolean;
-  saved: boolean;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isNew ? "Create your profile" : "Edit profile"}
-          </h1>
-          {!isNew && form.slug && (
-            <Link
-              href={`/submitters/${form.slug}`}
-              className="mt-1 text-sm text-gray-400 underline decoration-gray-300 hover:text-gray-900"
-            >
-              View public profile
-            </Link>
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{label}</div>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+const inputCls = "w-full border border-gray-200 bg-white px-3 py-1.5 text-sm focus:border-gray-400 focus:outline-none";
+const textareaClsBase = "w-full resize-none border border-gray-200 bg-white px-3 py-1.5 text-sm focus:border-gray-400 focus:outline-none";
+
+// ── Profile page (view + inline edit) ─────────────────────────────────────────
+
+function ProfilePage({
+  initialForm,
+  isNew,
+  draft,
+  startEditing,
+  onSave,
+  onDiscardDraft,
+  discardingDraft,
+  isPending,
+}: {
+  initialForm: ProfileData;
+  isNew: boolean;
+  draft: SavedDraft | null;
+  startEditing: boolean;
+  onSave: (data: ProfileData, onSuccess: () => void) => void;
+  onDiscardDraft: () => void;
+  discardingDraft: boolean;
+  isPending: boolean;
+}) {
+  const [editing, setEditing] = useState(startEditing);
+  const [form, setForm] = useState<ProfileData>(initialForm);
+  const [contributorDraft, setContributorDraft] = useState("");
+
+  // Keep form in sync if parent data changes (e.g. after save)
+  useEffect(() => { setForm(initialForm); }, [initialForm]);
+  useEffect(() => { if (startEditing) setEditing(true); }, [startEditing]);
+
+  function set(patch: Partial<ProfileData>) {
+    setForm((f) => ({ ...f, ...patch }));
+  }
+
+  function addContributor() {
+    const name = contributorDraft.trim();
+    if (!name) return;
+    set({ contributors: [...form.contributors, name] });
+    setContributorDraft("");
+  }
+
+  function removeContributor(i: number) {
+    set({ contributors: form.contributors.filter((_, idx) => idx !== i) });
+  }
+
+  function handleCancel() {
+    setForm(initialForm);
+    setEditing(false);
+  }
+
+  return (
+    <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+
+      {/* Top nav */}
+      {form.slug && !isNew && (
+        <Link
+          href={`/submitters/${form.slug}`}
+          className="mb-6 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          View public profile
+        </Link>
+      )}
+
+      {/* Header */}
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="flex-1">
+          {editing ? (
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => set({ name: e.target.value })}
+              placeholder="Your name"
+              className="w-full border-b border-gray-300 bg-transparent pb-1 text-2xl font-bold text-gray-900 focus:border-gray-700 focus:outline-none"
+            />
+          ) : (
+            <h1 className="text-2xl font-bold text-gray-900">{form.name || "My Profile"}</h1>
+          )}
+
+          {/* Type selector — inline toggle in both modes */}
+          <div className="mt-2 flex items-center gap-2">
+            {editing ? (
+              <>
+                {(["individual", "studio"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => set({ type: t })}
+                    className={`border px-3 py-0.5 text-xs font-medium capitalize transition-colors ${
+                      form.type === t
+                        ? "border-gray-900 bg-gray-900 text-white"
+                        : "border-gray-200 text-gray-500 hover:border-gray-400"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <p className="text-sm capitalize text-gray-500">
+                {form.type}
+                {(form.city || form.country)
+                  ? ` · ${[form.city, form.country].filter(Boolean).join(", ")}`
+                  : ""}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Edit / Save / Cancel buttons */}
+        <div className="flex shrink-0 items-center gap-2">
+          {editing ? (
+            <>
+              {!isNew && (
+                <Button variant="outline" size="sm" onClick={handleCancel} disabled={isPending}>
+                  Cancel
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => onSave(form, () => setEditing(false))}
+                disabled={isPending || !form.name.trim() || !form.country.trim()}
+              >
+                {isPending ? "Saving…" : isNew ? "Create profile" : "Save"}
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+              Edit profile
+            </Button>
           )}
         </div>
-        {saved && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
-            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Saved
-          </span>
-        )}
       </div>
 
-      <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-6">
-        {/* Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="Jane Smith"
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-          />
+      {/* Drafts — always visible on private profile */}
+      {draft && !isNew && (
+        <div className="mb-6">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">In progress</p>
+          <DraftCard draft={draft} onDiscard={onDiscardDraft} discarding={discardingDraft} />
         </div>
+      )}
 
-        {/* Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Type</label>
-          <div className="mt-1 flex gap-3">
-            {(["individual", "studio"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setForm((f) => ({ ...f, type: t }))}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                  form.type === t
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 text-gray-600 hover:border-gray-400"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Balance — only in view mode (not during first-time setup) */}
+      {!isNew && !editing && <WithdrawButton />}
+
+      {/* Profile fields */}
+      <div className={`mt-6 space-y-5 border border-gray-200 bg-white p-6 ${editing ? "ring-1 ring-gray-900/5" : ""}`}>
 
         {/* Location */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Country <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.country}
-              onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-              placeholder="United States"
-              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">City</label>
-            <input
-              type="text"
-              value={form.city}
-              onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-              placeholder="New York"
-              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Bio */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Bio</label>
-          <textarea
-            value={form.bio}
-            onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-            rows={4}
-            placeholder="Brief professional background…"
-            className="mt-1 w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-          />
-        </div>
-
-        {/* Website */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Website</label>
-          <input
-            type="url"
-            value={form.website}
-            onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
-            placeholder="https://yourwebsite.com"
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-          />
-        </div>
-
-        {/* Year established (studios) */}
-        {form.type === "studio" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Year Established</label>
-            <input
-              type="number"
-              value={form.yearEstablished}
-              onChange={(e) => setForm((f) => ({ ...f, yearEstablished: e.target.value }))}
-              placeholder="2010"
-              min="1900"
-              max={new Date().getFullYear()}
-              className="mt-1 w-32 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-            />
-          </div>
+        {(editing || form.city || form.country) && (
+          <Field label="Location">
+            {editing ? (
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  value={form.country}
+                  onChange={(e) => set({ country: e.target.value })}
+                  placeholder="Country *"
+                  className={inputCls}
+                />
+                <input
+                  type="text"
+                  value={form.city}
+                  onChange={(e) => set({ city: e.target.value })}
+                  placeholder="City"
+                  className={inputCls}
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-gray-900">
+                {[form.city, form.country].filter(Boolean).join(", ")}
+              </p>
+            )}
+          </Field>
         )}
 
-        {/* Actions */}
-        <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-          <p className="text-xs text-gray-400">Your profile is public once saved.</p>
-          <div className="flex gap-3">
-            {!isNew && (
-              <Button variant="outline" onClick={onCancel} disabled={isPending}>
-                Cancel
-              </Button>
+        {/* Bio */}
+        {(editing || form.bio) && (
+          <Field label="Bio">
+            {editing ? (
+              <textarea
+                value={form.bio}
+                onChange={(e) => set({ bio: e.target.value })}
+                rows={4}
+                placeholder="Brief professional background…"
+                className={textareaClsBase}
+              />
+            ) : (
+              <p className="text-sm leading-relaxed text-gray-700">{form.bio}</p>
             )}
-            <Button onClick={onSave} disabled={isPending || !form.name || !form.country}>
-              {isPending ? "Saving…" : isNew ? "Create profile" : "Save changes"}
-            </Button>
-          </div>
-        </div>
+          </Field>
+        )}
+
+        {/* Website */}
+        {(editing || form.website) && (
+          <Field label="Website">
+            {editing ? (
+              <input
+                type="url"
+                value={form.website}
+                onChange={(e) => set({ website: e.target.value })}
+                placeholder="https://yourwebsite.com"
+                className={inputCls}
+              />
+            ) : (
+              <a
+                href={form.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-900 underline decoration-gray-300 hover:decoration-gray-900"
+              >
+                {form.website.replace(/^https?:\/\//, "")}
+              </a>
+            )}
+          </Field>
+        )}
+
+        {/* Year established (studios only) */}
+        {form.type === "studio" && (editing || form.yearEstablished) && (
+          <Field label="Established">
+            {editing ? (
+              <input
+                type="number"
+                value={form.yearEstablished}
+                onChange={(e) => set({ yearEstablished: e.target.value })}
+                placeholder="2010"
+                min="1900"
+                max={new Date().getFullYear()}
+                className={`${inputCls} w-32`}
+              />
+            ) : (
+              <p className="text-sm text-gray-900">{form.yearEstablished}</p>
+            )}
+          </Field>
+        )}
+
+        {/* Contributors (studios only) */}
+        {form.type === "studio" && (editing || form.contributors.length > 0) && (
+          <Field label="Contributors">
+            {form.contributors.length > 0 && (
+              <ul className="mb-2 space-y-1">
+                {form.contributors.map((name, i) => (
+                  <li key={i} className="flex items-center justify-between text-sm text-gray-900">
+                    <span>{name}</span>
+                    {editing && (
+                      <button
+                        type="button"
+                        onClick={() => removeContributor(i)}
+                        className="ml-2 text-gray-300 hover:text-red-400"
+                        aria-label="Remove"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {editing && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={contributorDraft}
+                  onChange={(e) => setContributorDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addContributor(); } }}
+                  placeholder="Add a name…"
+                  className={`flex-1 ${inputCls}`}
+                />
+                <button
+                  type="button"
+                  onClick={addContributor}
+                  disabled={!contributorDraft.trim()}
+                  className="border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:border-gray-400 disabled:opacity-40"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </Field>
+        )}
+
+        {/* Empty state hint when nothing is filled yet */}
+        {!editing && !form.bio && !form.website && !form.city && !form.country &&
+          !(form.type === "studio" && (form.yearEstablished || form.contributors.length > 0)) && (
+          <p className="text-sm text-gray-400">
+            Your profile is empty.{" "}
+            <button onClick={() => setEditing(true)} className="underline decoration-gray-300 hover:text-gray-700">
+              Add your details
+            </button>
+          </p>
+        )}
       </div>
+
+      {/* Bottom note in edit mode */}
+      {editing && (
+        <p className="mt-3 text-xs text-gray-400">Your profile is public once saved.</p>
+      )}
     </main>
   );
 }
@@ -298,35 +417,41 @@ function ProfileEdit({
 function AccountContent() {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const startInEdit = searchParams.get("edit") === "true";
   const [profileState, setProfileState] = useState<ProfileState>({ status: "loading" });
   const [form, setForm] = useState<ProfileData>(blankForm());
-  const [editing, setEditing] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [draft, setDraft] = useState<SavedDraft | null>(null);
+  const [discardingDraft, setDiscardingDraft] = useState(false);
+  const startedUnauthenticated = useRef(false);
 
   useEffect(() => {
     if (!ready) return;
     if (!authenticated) {
+      startedUnauthenticated.current = true;
       setProfileState({ status: "unauthenticated" });
+      return;
+    }
+    if (startedUnauthenticated.current) {
+      router.push("/");
       return;
     }
 
     getAccessToken().then(async (token) => {
-      if (!token) {
-        setProfileState({ status: "unauthenticated" });
-        return;
-      }
+      if (!token) { setProfileState({ status: "unauthenticated" }); return; }
       try {
-        const row = await getProfile(token);
+        const [row, savedDraft] = await Promise.all([
+          getProfile(token),
+          getMyDraft(token).catch(() => null),
+        ]);
+        setDraft(savedDraft);
         if (row) {
           const data = rowToForm(row);
           setForm(data);
           setProfileState({ status: "ready", data });
-          setEditing(startInEdit);
         } else {
           setProfileState({ status: "ready", data: null });
-          setEditing(true); // new profile — go straight to edit
         }
       } catch (e) {
         setProfileState({ status: "error", message: String(e) });
@@ -335,42 +460,40 @@ function AccountContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, authenticated]);
 
-  function handleSave() {
-    setSaved(false);
+  async function handleDiscardDraft() {
+    setDiscardingDraft(true);
+    const token = await getAccessToken();
+    if (token) await discardDraft(token).catch(() => {});
+    setDraft(null);
+    setDiscardingDraft(false);
+  }
+
+  function handleSave(data: ProfileData, onSuccess: () => void) {
     startTransition(async () => {
       const token = await getAccessToken();
       if (!token) return;
 
       const input: ProfileInput = {
-        name: form.name,
-        type: form.type,
-        country: form.country,
-        city: form.city || undefined,
-        bio: form.bio,
-        website: form.website || undefined,
-        yearEstablished: form.yearEstablished ? Number(form.yearEstablished) : undefined,
+        name: data.name,
+        type: data.type,
+        country: data.country,
+        city: data.city || undefined,
+        bio: data.bio,
+        website: data.website || undefined,
+        yearEstablished: data.yearEstablished ? Number(data.yearEstablished) : undefined,
+        contributors: data.contributors,
       };
 
       try {
         const { slug } = await saveProfile(token, input);
-        const updated = { ...form, slug };
+        const updated = { ...data, slug };
         setForm(updated);
         setProfileState({ status: "ready", data: updated });
-        setSaved(true);
-        setEditing(false);
-        setTimeout(() => setSaved(false), 3000);
+        onSuccess();
       } catch (e) {
         setProfileState({ status: "error", message: String(e) });
       }
     });
-  }
-
-  function handleCancel() {
-    // Reset form to last saved state and exit edit mode
-    if (profileState.status === "ready" && profileState.data) {
-      setForm(profileState.data);
-    }
-    setEditing(false);
   }
 
   // ── render states ──────────────────────────────────────────────────────────
@@ -380,7 +503,7 @@ function AccountContent() {
       <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-gray-100" />
+            <div key={i} className="h-12 animate-pulse bg-gray-100" />
           ))}
         </div>
       </main>
@@ -390,8 +513,8 @@ function AccountContent() {
   if (profileState.status === "unauthenticated") {
     return (
       <main className="mx-auto max-w-md px-4 py-24 text-center sm:px-6">
-        <h1 className="text-2xl font-bold text-gray-900">Your Profile</h1>
-        <p className="mt-3 text-gray-500">Sign in to create or manage your designer profile.</p>
+        <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+        <p className="mt-3 text-gray-500">Sign in to view your profile and manage competitions.</p>
         <Button onClick={login} className="mt-6">Sign in</Button>
       </main>
     );
@@ -400,28 +523,21 @@ function AccountContent() {
   if (profileState.status === "error") {
     return (
       <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
-        <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
-          {profileState.message}
-        </div>
+        <div className="bg-red-50 p-4 text-sm text-red-700">{profileState.message}</div>
       </main>
     );
   }
 
-  const isNew = !form.slug;
-
-  if (!editing) {
-    return <ProfileView form={form} onEdit={() => setEditing(true)} />;
-  }
-
   return (
-    <ProfileEdit
-      form={form}
-      setForm={setForm}
-      isNew={isNew}
-      isPending={isPending}
-      saved={saved}
+    <ProfilePage
+      initialForm={form}
+      isNew={!form.slug}
+      draft={draft}
+      startEditing={startInEdit}
       onSave={handleSave}
-      onCancel={handleCancel}
+      onDiscardDraft={handleDiscardDraft}
+      discardingDraft={discardingDraft}
+      isPending={isPending}
     />
   );
 }

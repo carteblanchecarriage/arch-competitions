@@ -87,7 +87,7 @@ Student competitions run by commercial entities — software companies, material
 
 The rule of thumb: if you wouldn't sign a commercial contract with those terms, don't sign a competition brief with them either. The prize amount doesn't change the legal effect of what you're agreeing to.
 
-## What Arch Competitions Does
+## What Counterparti Does
 
 Our default IP terms are a limited display licence. Organisers can show, publish, and promote submitted work in the context of the competition. Commercial use requires a separate agreement with the designer.
 

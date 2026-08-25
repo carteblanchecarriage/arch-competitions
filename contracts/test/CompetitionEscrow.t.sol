@@ -25,12 +25,15 @@ contract FeeOnTransferERC20 is ERC20 {
         _mint(to, amount);
     }
 
-    function _transfer(address from, address to, uint256 amount) internal override {
-        uint256 fee = (amount * feeBps) / 10_000;
-        uint256 net = amount - fee;
-        super._transfer(from, to, net);
-        if (fee > 0) {
-            _burn(from, fee);
+    // OZ 5.x: override _update (the internal accounting primitive) instead of _transfer.
+    function _update(address from, address to, uint256 amount) internal override {
+        if (from != address(0) && to != address(0)) {
+            uint256 fee = (amount * feeBps) / 10_000;
+            uint256 net = amount - fee;
+            super._update(from, to, net);
+            super._update(from, address(0), fee); // burn fee
+        } else {
+            super._update(from, to, amount);
         }
     }
 }
@@ -641,6 +644,283 @@ contract CompetitionEscrowTest is Test {
         vm.prank(alice);
         vm.expectRevert(CompetitionEscrow.InvalidState.selector);
         escrow.claimRefund();
+    }
+
+    // ─────────────────────────── invariants ─────────────────────────────
+
+    // ─────────────────────── state machine completeness ─────────────────
+
+    function test_fund_reverts_in_resolved_state() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        address[] memory winners = new address[](3);
+        winners[0] = first; winners[1] = second; winners[2] = third;
+        vm.prank(organizer);
+        escrow.announceWinners(winners);
+
+        vm.prank(bob);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.fund(100e6);
+    }
+
+    function test_fund_reverts_in_cancelled_state() public {
+        vm.prank(organizer);
+        escrow.cancel();
+
+        vm.prank(alice);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.fund(100e6);
+    }
+
+    function test_announceWinners_reverts_in_resolved_state() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        address[] memory winners = new address[](3);
+        winners[0] = first; winners[1] = second; winners[2] = third;
+        vm.prank(organizer);
+        escrow.announceWinners(winners);
+
+        vm.prank(organizer);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.announceWinners(winners);
+    }
+
+    function test_announceWinners_reverts_in_cancelled_state() public {
+        vm.prank(organizer);
+        escrow.cancel();
+
+        address[] memory winners = new address[](3);
+        winners[0] = first; winners[1] = second; winners[2] = third;
+        vm.prank(organizer);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.announceWinners(winners);
+    }
+
+    function test_claimPrize_reverts_in_cancelled_state() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+        vm.prank(feeRecipient);
+        escrow.cancel();
+
+        vm.prank(first);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.claimPrize();
+    }
+
+    function test_claimRefund_reverts_in_resolved_state() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        address[] memory winners = new address[](3);
+        winners[0] = first; winners[1] = second; winners[2] = third;
+        vm.prank(organizer);
+        escrow.announceWinners(winners);
+
+        vm.prank(alice);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.claimRefund();
+    }
+
+    // ───────────────────────── cancel edge cases ────────────────────────
+
+    function test_cancel_platform_cannot_cancel_empty_unfunded() public {
+        // Empty + unfunded + Funding state: only organizer, not platform.
+        vm.prank(feeRecipient);
+        vm.expectRevert(CompetitionEscrow.NotOrganizer.selector);
+        escrow.cancel();
+    }
+
+    function test_cancel_at_exactly_expiration_timestamp() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        vm.warp(expirationTimestamp); // exactly at boundary (>=)
+        vm.prank(carol);
+        escrow.cancel();
+        assertEq(uint256(escrow.state()), uint256(CompetitionEscrow.State.Cancelled));
+    }
+
+    function test_cancel_one_second_before_expiration_reverts_for_random() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        vm.warp(expirationTimestamp - 1);
+        vm.prank(carol);
+        vm.expectRevert(CompetitionEscrow.NotPlatform.selector);
+        escrow.cancel();
+    }
+
+    function test_cancel_already_cancelled_reverts() public {
+        vm.prank(organizer);
+        escrow.cancel();
+
+        vm.prank(organizer);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.cancel();
+    }
+
+    // ──────────────────────── accounting invariants ──────────────────────
+
+    function test_lock_then_announceWinners_with_empty_pool_reverts() public {
+        vm.prank(organizer);
+        escrow.lock();
+
+        address[] memory winners = new address[](3);
+        winners[0] = first; winners[1] = second; winners[2] = third;
+        vm.prank(organizer);
+        vm.expectRevert(CompetitionEscrow.NoFunds.selector);
+        escrow.announceWinners(winners);
+    }
+
+    function test_full_payout_drains_contract_balance() public {
+        vm.prank(alice);
+        escrow.fund(10_000e6);
+
+        address[] memory winners = new address[](3);
+        winners[0] = first; winners[1] = second; winners[2] = third;
+        vm.prank(organizer);
+        escrow.announceWinners(winners);
+
+        vm.prank(first);
+        escrow.claimPrize();
+        vm.prank(second);
+        escrow.claimPrize();
+        vm.prank(third);
+        escrow.claimPrize();
+
+        assertEq(usdc.balanceOf(address(escrow)), 0, "escrow should be empty after all claims");
+    }
+
+    function test_all_refunds_drain_contract_balance() public {
+        vm.prank(alice);
+        escrow.fund(3_000e6);
+        vm.prank(bob);
+        escrow.fund(2_000e6);
+
+        vm.prank(feeRecipient);
+        escrow.cancel();
+
+        vm.prank(alice);
+        escrow.claimRefund();
+        vm.prank(bob);
+        escrow.claimRefund();
+
+        assertEq(usdc.balanceOf(address(escrow)), 0, "escrow should be empty after all refunds");
+    }
+
+    function test_winner_who_contributed_cannot_double_dip() public {
+        // alice is both a contributor and a winner — she can prize-claim but not refund
+        vm.prank(alice);
+        escrow.fund(10_000e6);
+
+        address[] memory winners = new address[](3);
+        winners[0] = alice; // alice wins 1st place
+        winners[1] = second;
+        winners[2] = third;
+        vm.prank(organizer);
+        escrow.announceWinners(winners);
+
+        vm.prank(alice);
+        escrow.claimPrize();
+
+        // claimRefund must fail — state is Resolved, not Cancelled
+        vm.prank(alice);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.claimRefund();
+    }
+
+    // ────────────────────────── emergencyWithdraw ────────────────────────
+
+    function test_emergencyWithdraw_by_platform_from_funding() public {
+        vm.prank(alice);
+        escrow.fund(5_000e6);
+
+        address treasury = makeAddr("treasury");
+        vm.prank(feeRecipient);
+        escrow.emergencyWithdraw(treasury);
+
+        assertEq(usdc.balanceOf(treasury), 5_000e6);
+        assertEq(usdc.balanceOf(address(escrow)), 0);
+        assertEq(uint256(escrow.state()), uint256(CompetitionEscrow.State.Cancelled));
+    }
+
+    function test_emergencyWithdraw_from_locked_state() public {
+        vm.prank(alice);
+        escrow.fund(5_000e6);
+        vm.prank(organizer);
+        escrow.lock();
+
+        address treasury = makeAddr("treasury");
+        vm.prank(feeRecipient);
+        escrow.emergencyWithdraw(treasury);
+
+        assertEq(usdc.balanceOf(treasury), 5_000e6);
+        assertEq(uint256(escrow.state()), uint256(CompetitionEscrow.State.Cancelled));
+    }
+
+    function test_emergencyWithdraw_from_already_cancelled() public {
+        // Escrow expired and was cancelled via rescue path; some contributor
+        // is blocklisted by USDC. Platform sweeps remainder.
+        vm.prank(alice);
+        escrow.fund(5_000e6);
+        vm.warp(expirationTimestamp + 1);
+        vm.prank(carol);
+        escrow.cancel(); // rescue path, bob triggers it
+
+        // bob refunds, alice cannot (blocklisted)
+        vm.prank(alice);
+        escrow.claimRefund();
+
+        address treasury = makeAddr("treasury");
+        vm.prank(feeRecipient);
+        escrow.emergencyWithdraw(treasury);
+
+        assertEq(usdc.balanceOf(treasury), 0); // alice already claimed
+        assertEq(usdc.balanceOf(address(escrow)), 0);
+    }
+
+    function test_emergencyWithdraw_reverts_when_resolved() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        address[] memory winners = new address[](3);
+        winners[0] = first; winners[1] = second; winners[2] = third;
+        vm.prank(organizer);
+        escrow.announceWinners(winners);
+
+        vm.prank(feeRecipient);
+        vm.expectRevert(CompetitionEscrow.InvalidState.selector);
+        escrow.emergencyWithdraw(feeRecipient);
+    }
+
+    function test_emergencyWithdraw_reverts_for_non_platform() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        vm.prank(alice);
+        vm.expectRevert(CompetitionEscrow.NotPlatform.selector);
+        escrow.emergencyWithdraw(alice);
+    }
+
+    function test_emergencyWithdraw_reverts_zero_address() public {
+        vm.prank(alice);
+        escrow.fund(1_000e6);
+
+        vm.prank(feeRecipient);
+        vm.expectRevert(CompetitionEscrow.ZeroAddress.selector);
+        escrow.emergencyWithdraw(address(0));
+    }
+
+    function test_emergencyWithdraw_empty_pool_is_noop() public {
+        // No funds contributed yet — state transitions to Cancelled, transfer is 0.
+        address treasury = makeAddr("treasury");
+        vm.prank(feeRecipient);
+        escrow.emergencyWithdraw(treasury);
+
+        assertEq(usdc.balanceOf(treasury), 0);
+        assertEq(uint256(escrow.state()), uint256(CompetitionEscrow.State.Cancelled));
     }
 
     // ─────────────────────────── invariants ─────────────────────────────

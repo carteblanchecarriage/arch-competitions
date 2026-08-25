@@ -7,11 +7,15 @@ import { Button } from "@/components/ui/Button";
 import {
   getOrganizerDashboard,
   getCompetitionEntries,
+  updateCompetitionDeadline,
   type OrganizerCompetition,
   type DashboardEntry,
 } from "@/app/actions/organizer";
 import { publishCompetition } from "@/app/actions/competition";
 import { FundCompetitionPanel } from "@/components/detail/FundCompetitionPanel";
+import { OrganizerQAPanel } from "@/components/competitions/OrganizerQAPanel";
+import { AnnounceWinnersPanel } from "@/components/competitions/AnnounceWinnersPanel";
+import { OrganizerJuryPanel } from "@/components/competitions/OrganizerJuryPanel";
 import { formatDate, formatCurrency } from "@/lib/utils";
 
 type PageState =
@@ -50,6 +54,9 @@ export default function OrganizerDashboardPage({
   const [error, setError] = useState<string | null>(null);
   const [publishingSlug, setPublishingSlug] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<Record<string, string>>({});
+  const [deadlineEdit, setDeadlineEdit] = useState<Record<string, string>>({});
+  const [savingDeadline, setSavingDeadline] = useState<string | null>(null);
+  const [deadlineError, setDeadlineError] = useState<Record<string, string>>({});
 
   // Load dashboard on auth
   useEffect(() => {
@@ -111,6 +118,13 @@ export default function OrganizerDashboardPage({
   const submitted = entries.filter((e) => e.status === "submitted");
   const drafts = entries.filter((e) => e.status === "draft");
 
+  async function handleAnnounced() {
+    const token = await getAccessToken();
+    if (!token) return;
+    const dashboard = await getOrganizerDashboard(token);
+    setCompetitions(dashboard.competitions);
+  }
+
   async function handlePublish(slug: string) {
     setPublishingSlug(slug);
     setPublishError((prev) => ({ ...prev, [slug]: "" }));
@@ -131,6 +145,38 @@ export default function OrganizerDashboardPage({
     }
   }
 
+  async function handleDeadlineUpdate(comp: OrganizerCompetition) {
+    const newDeadline = deadlineEdit[comp.id];
+    if (!newDeadline) return;
+    setSavingDeadline(comp.id);
+    setDeadlineError((prev) => ({ ...prev, [comp.id]: "" }));
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in.");
+      await updateCompetitionDeadline(token, comp.id, newDeadline);
+      const dashboard = await getOrganizerDashboard(token);
+      setCompetitions(dashboard.competitions);
+      setDeadlineEdit((prev) => ({ ...prev, [comp.id]: "" }));
+    } catch (e) {
+      setDeadlineError((prev) => ({
+        ...prev,
+        [comp.id]: e instanceof Error ? e.message : "Failed to update deadline.",
+      }));
+    } finally {
+      setSavingDeadline(null);
+    }
+  }
+
+  function deadlineEditRules(comp: OrganizerCompetition): string {
+    const createdAt = new Date(comp.createdAt).getTime();
+    const withinGrace = Date.now() - createdAt < 24 * 60 * 60 * 1000;
+    if (withinGrace) return "Within the first 24 hours — any changes allowed.";
+    const maxDate = new Date(
+      new Date(comp.originalSubmissionDeadline).getTime() + 90 * 24 * 60 * 60 * 1000
+    ).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return `Can extend up to ${maxDate} (3 months from original).`;
+  }
+
   // ── render states ────────────────────────────────────────────────────
 
   if (pageState.kind === "loading") {
@@ -138,7 +184,7 @@ export default function OrganizerDashboardPage({
       <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-14 animate-pulse rounded-xl bg-gray-100" />
+            <div key={i} className="h-14 animate-pulse bg-gray-100" />
           ))}
         </div>
       </div>
@@ -185,7 +231,7 @@ export default function OrganizerDashboardPage({
       </div>
 
       {competitions.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-12 text-center">
+        <div className="border border-gray-200 bg-gray-50 p-12 text-center">
           <p className="text-gray-500">No competitions yet.</p>
           <Link href="/create">
             <Button className="mt-4">Create a competition</Button>
@@ -202,7 +248,7 @@ export default function OrganizerDashboardPage({
               </h2>
               <div className="space-y-4">
                 {draftComps.map((c) => (
-                  <div key={c.id} className="rounded-xl border border-dashed border-gray-300 bg-white p-5">
+                  <div key={c.id} className="border border-dashed border-gray-300 bg-white p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h3 className="font-semibold text-gray-900">{c.title}</h3>
@@ -232,10 +278,35 @@ export default function OrganizerDashboardPage({
                         />
                       </div>
                     ) : (
-                      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                      <div className="mt-3 border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                         No escrow deployed. Make sure <code className="font-mono">DEPLOYER_PRIVATE_KEY</code> is set and re-create this competition.
                       </div>
                     )}
+
+                    {/* Deadline edit */}
+                    <div className="mt-4 border-t border-gray-100 pt-4">
+                      <p className="mb-1.5 text-xs font-medium text-gray-600">Change deadline</p>
+                      <p className="mb-2 text-[11px] text-gray-400">{deadlineEditRules(c)}</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={deadlineEdit[c.id] ?? ""}
+                          onChange={(e) => setDeadlineEdit((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                          className="border border-gray-200 px-2 py-1 text-xs focus:border-gray-400 focus:outline-none"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeadlineUpdate(c)}
+                          disabled={!deadlineEdit[c.id] || savingDeadline === c.id}
+                        >
+                          {savingDeadline === c.id ? "Saving…" : "Update"}
+                        </Button>
+                      </div>
+                      {deadlineError[c.id] && (
+                        <p className="mt-1.5 text-xs text-red-600">{deadlineError[c.id]}</p>
+                      )}
+                    </div>
 
                     <div className="mt-4 border-t border-gray-100 pt-4">
                       <Button
@@ -267,7 +338,7 @@ export default function OrganizerDashboardPage({
               <button
                 key={c.id}
                 onClick={() => handleSelectCompetition(c)}
-                className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors ${
+                className={`flex items-center gap-2 border px-4 py-2.5 text-sm transition-colors ${
                   c.id === selectedId
                     ? "border-gray-900 bg-gray-900 text-white"
                     : "border-gray-200 bg-white text-gray-700 hover:border-gray-400"
@@ -276,7 +347,7 @@ export default function OrganizerDashboardPage({
 
                 <span className="font-medium">{c.title}</span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  className={`px-2 py-0.5 text-xs font-medium ${
                     c.id === selectedId
                       ? "bg-white/20 text-white"
                       : STATUS_COLOR[c.status]
@@ -288,15 +359,15 @@ export default function OrganizerDashboardPage({
             ))}
           </div>
 
-          {/* Entries panel */}
+          {/* Entries + Q&A panel */}
           {selectedComp && (
-            <div className="rounded-xl border border-gray-200 bg-white">
+            <div className="border border-gray-200 bg-white">
               {/* Panel header */}
               <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                 <div className="flex items-center gap-3">
                   <h2 className="font-semibold text-gray-900">{selectedComp.title}</h2>
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLOR[selectedComp.status]}`}
+                    className={`px-2.5 py-0.5 text-xs font-medium ${STATUS_COLOR[selectedComp.status]}`}
                   >
                     {STATUS_LABEL[selectedComp.status]}
                   </span>
@@ -309,11 +380,49 @@ export default function OrganizerDashboardPage({
                 </Link>
               </div>
 
+              {/* Deadline edit */}
+              {selectedComp.status === "open" && (
+                <div className="border-b border-gray-100 px-6 py-4">
+                  <p className="mb-1 text-xs font-medium text-gray-600">
+                    Deadline: {formatDate(selectedComp.submissionDeadline)}
+                  </p>
+                  <p className="mb-2 text-[11px] text-gray-400">{deadlineEditRules(selectedComp)}</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={deadlineEdit[selectedComp.id] ?? ""}
+                      onChange={(e) => setDeadlineEdit((prev) => ({ ...prev, [selectedComp.id]: e.target.value }))}
+                      className="border border-gray-200 px-2 py-1 text-xs focus:border-gray-400 focus:outline-none"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeadlineUpdate(selectedComp)}
+                      disabled={!deadlineEdit[selectedComp.id] || savingDeadline === selectedComp.id}
+                    >
+                      {savingDeadline === selectedComp.id ? "Saving…" : "Extend"}
+                    </Button>
+                  </div>
+                  {deadlineError[selectedComp.id] && (
+                    <p className="mt-1.5 text-xs text-red-600">{deadlineError[selectedComp.id]}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Anonymous judging notice */}
+              {selectedComp.status !== "announced" && submitted.length > 0 && (
+                <div className="border-b border-gray-100 bg-gray-50 px-6 py-3">
+                  <p className="font-mono text-[0.625rem] uppercase tracking-widest text-gray-500">
+                    Anonymous judging active — submitter identities are hidden until you announce winners (UIA Accord)
+                  </p>
+                </div>
+              )}
+
               {/* Entries */}
               {loadingEntries ? (
                 <div className="space-y-3 p-6">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-12 animate-pulse rounded-lg bg-gray-100" />
+                    <div key={i} className="h-12 animate-pulse bg-gray-100" />
                   ))}
                 </div>
               ) : error ? (
@@ -330,7 +439,7 @@ export default function OrganizerDashboardPage({
                       <div className="border-b border-gray-100 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
                         Submitted — {submitted.length}
                       </div>
-                      <EntryTable entries={submitted} />
+                      <EntryTable entries={submitted} announced={selectedComp.status === "announced"} />
                     </div>
                   )}
 
@@ -340,11 +449,52 @@ export default function OrganizerDashboardPage({
                       <div className="border-b border-gray-100 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
                         In progress — {drafts.length}
                       </div>
-                      <EntryTable entries={drafts} muted />
+                      <EntryTable entries={drafts} announced={selectedComp.status === "announced"} muted />
                     </div>
                   )}
                 </div>
               )}
+
+              {/* Jury management */}
+              <div className="border-t border-gray-100">
+                <div className="border-b border-gray-100 px-6 py-4">
+                  <h3 className="font-semibold text-gray-900">Jury</h3>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    Add or update jurors at any time. Jurors must have a Counterparti account.
+                  </p>
+                </div>
+                <div className="px-6 py-5">
+                  <OrganizerJuryPanel
+                    competitionId={selectedComp.id}
+                    initialJury={selectedComp.jury}
+                  />
+                </div>
+              </div>
+
+              {/* Announce Winners */}
+              {selectedComp.status !== "announced" && (
+                <div className="border-t border-gray-100">
+                  <div className="border-b border-gray-100 px-6 py-4">
+                    <h3 className="font-semibold text-gray-900">Select Winners</h3>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      Pick one entry per prize tier. This publishes results publicly.
+                    </p>
+                  </div>
+                  <AnnounceWinnersPanel
+                    competition={selectedComp}
+                    entries={entries}
+                    onAnnounced={handleAnnounced}
+                  />
+                </div>
+              )}
+
+              {/* Q&A */}
+              <div className="border-t border-gray-100">
+                <div className="border-b border-gray-100 px-6 py-4">
+                  <h3 className="font-semibold text-gray-900">Questions</h3>
+                </div>
+                <OrganizerQAPanel competitionId={selectedComp.id} />
+              </div>
             </div>
           )}
           </div>
@@ -358,9 +508,11 @@ export default function OrganizerDashboardPage({
 
 function EntryTable({
   entries,
+  announced,
   muted = false,
 }: {
   entries: DashboardEntry[];
+  announced: boolean;
   muted?: boolean;
 }) {
   return (
@@ -372,10 +524,17 @@ function EntryTable({
         >
           {/* Status dot */}
           <div
-            className={`h-2 w-2 shrink-0 rounded-full ${
+            className={`h-2 w-2 shrink-0 ${
               e.status === "submitted" ? "bg-emerald-400" : "bg-gray-300"
             }`}
           />
+
+          {/* Anonymous ID */}
+          {e.anonymousId && (
+            <span className="shrink-0 font-mono text-[0.625rem] uppercase tracking-widest text-gray-400">
+              {e.anonymousId}
+            </span>
+          )}
 
           {/* Project info */}
           <div className="min-w-0 flex-1">
@@ -385,13 +544,19 @@ function EntryTable({
             )}
           </div>
 
-          {/* Submitter */}
-          <Link
-            href={`/submitters/${e.submitter.slug}`}
-            className="hidden shrink-0 text-sm text-gray-600 hover:text-gray-900 hover:underline sm:block"
-          >
-            {e.submitter.name}
-          </Link>
+          {/* Submitter — only shown after announcement */}
+          {announced && e.submitter ? (
+            <Link
+              href={`/submitters/${e.submitter.slug}`}
+              className="hidden shrink-0 text-sm text-gray-600 hover:text-gray-900 hover:underline sm:block"
+            >
+              {e.submitter.name}
+            </Link>
+          ) : !announced ? (
+            <span className="hidden shrink-0 font-mono text-[0.625rem] uppercase tracking-widest text-gray-300 sm:block">
+              Identity hidden
+            </span>
+          ) : null}
 
           {/* File count */}
           {e.files.length > 0 && (
@@ -401,11 +566,11 @@ function EntryTable({
           )}
 
           {/* Date */}
-          <span className="shrink-0 text-xs text-gray-400">
+          <span className="shrink-0 font-mono text-[0.625rem] text-gray-400">
             {e.submittedAt ? formatDate(e.submittedAt) : "Draft"}
           </span>
 
-          {/* Files link */}
+          {/* Project link */}
           {e.projectUrl && (
             <a
               href={e.projectUrl}

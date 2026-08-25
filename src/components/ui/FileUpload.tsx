@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -7,6 +7,7 @@ import type { CompetitionAttachment } from "@/data/types";
 
 const DEFAULT_BUCKET = "competition-files";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const MAX_BYTES = 50 * 1024 * 1024; // 50 MB — Supabase free-tier limit
 
 const ACCEPTED = [
   ".pdf", ".dwg", ".dxf", ".3dm", ".skp", ".rvt", ".ifc",
@@ -39,11 +40,19 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = D
   const { getAccessToken } = usePrivy();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   async function uploadFile(file: File) {
     setError(null);
+    setProgress(0);
+
+    if (file.size > MAX_BYTES) {
+      setError(`File too large — max 50 MB. "${file.name}" is ${formatBytes(file.size)}.`);
+      return;
+    }
+
     setUploading(file.name);
     try {
       const token = await getAccessToken();
@@ -54,12 +63,21 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = D
 
       const signedUrl = await getSignedUploadUrl(token, bucket, path);
 
-      const res = await fetch(signedUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+        });
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Upload failed (${xhr.status})`));
+        });
+        xhr.addEventListener("error", () => reject(new Error("Network error during upload")));
+        xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+        xhr.open("PUT", signedUrl);
+        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+        xhr.send(file);
       });
-      if (!res.ok) throw new Error("Upload failed");
 
       const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
       onAdd({ name: file.name, url: publicUrl, size: file.size, mimeType: file.type });
@@ -67,6 +85,7 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = D
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(null);
+      setProgress(0);
     }
   }
 
@@ -82,7 +101,7 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = D
       {files.length > 0 && (
         <ul className="space-y-2">
           {files.map((f, i) => (
-            <li key={i} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm">
+            <li key={i} className="flex items-center gap-3  border border-gray-200 bg-white px-4 py-2.5 text-sm">
               <span className="text-base" aria-hidden>{fileIcon(f.name)}</span>
               <span className="flex-1 truncate font-medium text-gray-800">{f.name}</span>
               {f.size && (
@@ -94,7 +113,7 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = D
                 className="shrink-0 text-gray-300 hover:text-red-400"
                 aria-label="Remove"
               >
-                ✕
+                ×
               </button>
             </li>
           ))}
@@ -111,7 +130,7 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = D
           if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
         }}
         onClick={() => inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-8 transition-colors ${
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2  border-2 border-dashed px-6 py-8 transition-colors ${
           dragOver
             ? "border-gray-400 bg-gray-100"
             : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
@@ -119,8 +138,19 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = D
       >
         {uploading ? (
           <>
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
-            <p className="text-xs text-gray-500">Uploading {uploading}…</p>
+            <div className="h-5 w-5 animate-spin border-2 border-gray-300 border-t-gray-600" />
+            <p className="text-xs text-gray-500 text-center">
+              Uploading {uploading}…
+              {progress > 0 && <span className="ml-1 font-medium">{progress}%</span>}
+            </p>
+            {progress > 0 && (
+              <div className="w-40 h-1 bg-gray-200">
+                <div
+                  className="h-1 bg-gray-600 transition-all duration-150"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -130,7 +160,7 @@ export function FileUpload({ files, onAdd, onRemove, uploadSessionId, bucket = D
             <p className="text-sm text-gray-500">
               <span className="font-medium">Click to upload</span> or drag and drop
             </p>
-            <p className="text-xs text-gray-400">PDF, DWG, DXF, 3DM, SKP, RVT, images, ZIP</p>
+            <p className="text-xs text-gray-400">PDF, DWG, DXF, 3DM, SKP, RVT, images, ZIP · max 50 MB</p>
           </>
         )}
       </div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useAccount, useReadContract, useChainId } from "wagmi";
@@ -76,7 +76,7 @@ export function FundCompetitionPanel({
 
   if (!escrowAddress) {
     return (
-      <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+      <div className="mt-4  border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
         Escrow not yet deployed for this competition. Run{" "}
         <code className="font-mono">npm run deploy:escrows</code> to create it.
       </div>
@@ -145,7 +145,7 @@ export function FundCompetitionPanel({
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0.00"
           disabled={isBusy}
-          className="w-full rounded-md border border-gray-200 bg-white py-2 pl-7 pr-3 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+          className="w-full  border border-gray-200 bg-white py-2 pl-7 pr-3 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
         />
       </div>
 
@@ -170,10 +170,10 @@ export function FundCompetitionPanel({
         )}
       </div>
 
-      <div className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+      <div className=" border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
         <strong>Funds are locked once deposited.</strong> Prize money is held in
-        escrow and cannot be withdrawn or returned by the organizer — only Arch
-        can authorize a cancellation. This protects everyone who enters.
+        escrow and cannot be withdrawn. Cancellation is limited — at minimum 50%
+        of the pool is guaranteed to registered designers.
       </div>
 
       <Button onClick={fund} disabled={!canFund} className="w-full">
@@ -187,11 +187,11 @@ export function FundCompetitionPanel({
       )}
 
       {error && (
-        <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
+        <div className=" bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
       )}
 
       {step === "done" && (
-        <div className="rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+        <div className=" bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
           ✓ Contribution sent. Pool refreshes shortly.
         </div>
       )}

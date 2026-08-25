@@ -52,7 +52,7 @@ export default async function BlogPostPage({ params }: Props) {
       <article className="mt-8">
         <header className="mb-10">
           {post.image && (
-            <div className="mb-8 -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden rounded-lg">
+            <div className="mb-8 -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={post.image}
@@ -66,7 +66,7 @@ export default async function BlogPostPage({ params }: Props) {
             {post.tags.map((tag) => (
               <span
                 key={tag}
-                className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600"
+                className="bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600"
               >
                 {tag}
               </span>

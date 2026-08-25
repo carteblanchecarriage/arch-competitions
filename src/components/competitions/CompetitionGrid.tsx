@@ -1,4 +1,4 @@
-import type { Competition } from "@/data/types";
+﻿import type { Competition } from "@/data/types";
 import { CompetitionCard } from "./CompetitionCard";
 
 interface CompetitionGridProps {
@@ -9,7 +9,7 @@ interface CompetitionGridProps {
 export function CompetitionGrid({ competitions, emptyMessage }: CompetitionGridProps) {
   if (competitions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 py-16 text-center">
+      <div className="flex flex-col items-center justify-center  border border-dashed border-gray-300 py-16 text-center">
         <svg className="mb-3 h-10 w-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
@@ -20,7 +20,7 @@ export function CompetitionGrid({ competitions, emptyMessage }: CompetitionGridP
   }
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
       {competitions.map((c) => (
         <CompetitionCard key={c.id} competition={c} />
       ))}

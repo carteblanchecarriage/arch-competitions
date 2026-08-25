@@ -4,7 +4,7 @@ import { BaseError, ContractFunctionRevertedError, UserRejectedRequestError } fr
 const ESCROW_ERRORS: Record<string, string> = {
   InvalidState: "This action isn't valid in the current competition state.",
   NotOrganizer: "Only the competition organizer can do this.",
-  NotPlatform: "This competition's funds are locked. Only Arch can cancel a funded competition.",
+  NotPlatform: "This competition's funds are locked. Only Counterparti can cancel a funded competition.",
   ZeroAmount: "Amount must be greater than zero.",
   ZeroAddress: "A required address is missing or invalid.",
   EmptyShares: "Prize structure is missing.",

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { CompetitionGrid } from "@/components/competitions/CompetitionGrid";
@@ -50,7 +50,7 @@ export function CompetitionsBrowser({ competitions }: CompetitionsBrowserProps) 
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors lg:hidden",
+              "flex items-center gap-1.5  border px-3 py-2 text-sm font-medium transition-colors lg:hidden",
               showFilters
                 ? "border-gray-900 bg-gray-900 text-white"
                 : "border-gray-300 text-gray-700 hover:bg-gray-50"

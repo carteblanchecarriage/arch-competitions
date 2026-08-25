@@ -5,25 +5,25 @@ export const STATUS_CONFIG: Record<
   { label: string; color: string; bgColor: string; dotColor: string }
 > = {
   draft: {
-    label: "Draft — Not Live",
-    color: "text-gray-600",
+    label: "Draft",
+    color: "text-gray-500",
     bgColor: "bg-gray-100",
     dotColor: "bg-gray-400",
   },
   open: {
-    label: "Open for Submissions",
+    label: "Open",
     color: "text-emerald-700",
     bgColor: "bg-emerald-50",
     dotColor: "bg-emerald-500",
   },
   judging: {
-    label: "In Judging",
+    label: "Judging",
     color: "text-amber-700",
     bgColor: "bg-amber-50",
     dotColor: "bg-amber-500",
   },
   announced: {
-    label: "Winners Announced",
+    label: "Announced",
     color: "text-blue-700",
     bgColor: "bg-blue-50",
     dotColor: "bg-blue-500",

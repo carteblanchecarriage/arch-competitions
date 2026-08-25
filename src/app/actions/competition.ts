@@ -45,6 +45,8 @@ export interface JuryInput {
   photo: string | null;
   bio: string;
   location: string;
+  isChair?: boolean;
+  isArchitect?: boolean;
 }
 
 export interface CreateCompetitionInput {
@@ -64,6 +66,7 @@ export interface CreateCompetitionInput {
   ipTermsType: string;
   attachments: CompetitionAttachment[];
   jury: JuryInput[];
+  professionalFeesAcknowledged: boolean;
 }
 
 export async function createCompetition(
@@ -193,6 +196,7 @@ export async function createCompetition(
     tags: [],
     registration_deadline: input.registrationDeadline || null,
     submission_deadline: input.submissionDeadline,
+    original_submission_deadline: input.submissionDeadline,
     prize_total_amount: input.totalAmount,
     prize_currency: "USD",
     prize_breakdown: breakdown,
@@ -218,6 +222,8 @@ export async function createCompetition(
       organization: j.location,
       photo: j.photo ?? undefined,
       bio: j.bio,
+      isChair: j.isChair ?? false,
+      isArchitect: j.isArchitect ?? false,
     })),
     evaluation_criteria: [],
     deliverables: [],

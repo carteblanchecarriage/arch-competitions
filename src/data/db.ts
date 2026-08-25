@@ -296,3 +296,14 @@ export const getAllSubmitterSlugs = cache(async (): Promise<string[]> => {
   if (error) throw new Error(`getAllSubmitterSlugs: ${error.message}`);
   return data.map((r) => r.slug);
 });
+
+// ─── Registration queries ─────────────────────────────────────────────
+
+export const getRegistrationCount = cache(async (competitionId: string): Promise<number> => {
+  const { count, error } = await getSupabase()
+    .from("competition_registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("competition_id", competitionId);
+  if (error) return 0;
+  return count ?? 0;
+});
