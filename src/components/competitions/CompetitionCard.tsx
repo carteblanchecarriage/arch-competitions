@@ -5,6 +5,8 @@ import { Tag } from "@/components/ui/Tag";
 import { TYPE_LABELS, ELIGIBILITY_LABELS } from "@/lib/constants";
 import { formatCurrency, formatDeadline, daysUntil, isUrgent, cn } from "@/lib/utils";
 
+const DEMO_COMPETITION_SLUG = "riverside-crossing-pavilion";
+
 interface CompetitionCardProps {
   competition: Competition;
   compact?: boolean;
@@ -12,6 +14,7 @@ interface CompetitionCardProps {
 
 export function CompetitionCard({ competition: c, compact }: CompetitionCardProps) {
   const urgent = c.status === "open" && isUrgent(c.submissionDeadline);
+  const isDemo = c.slug === DEMO_COMPETITION_SLUG;
 
   if (compact) {
     return (
@@ -25,6 +28,11 @@ export function CompetitionCard({ competition: c, compact }: CompetitionCardProp
             alt={c.title}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
+          {isDemo && (
+            <div className="absolute inset-x-0 top-0 bg-black py-0.5 text-center font-mono text-[0.5rem] font-bold uppercase tracking-widest text-white">
+              Demo
+            </div>
+          )}
         </div>
         <div className="flex min-w-0 flex-1 flex-col justify-between">
           <div>
@@ -60,11 +68,16 @@ export function CompetitionCard({ competition: c, compact }: CompetitionCardProp
           alt={c.title}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
-        <div className="absolute left-3 top-3">
+        {isDemo && (
+          <div className="absolute inset-x-0 top-0 bg-black py-1 text-center font-mono text-[0.625rem] font-bold uppercase tracking-widest text-white">
+            Demo — Not a Real Competition
+          </div>
+        )}
+        <div className={cn("absolute left-3", isDemo ? "top-9" : "top-3")}>
           <StatusBadge status={c.status} />
         </div>
         {c.prizePool.isOpenPool && (
-          <div className="absolute right-3 top-3  bg-white/90 px-2 py-1 text-xs font-medium text-gray-700 backdrop-blur">
+          <div className={cn("absolute right-3  bg-white/90 px-2 py-1 text-xs font-medium text-gray-700 backdrop-blur", isDemo ? "top-9" : "top-3")}>
             Open Pool
           </div>
         )}

@@ -81,6 +81,22 @@ Buying USDC to fund a prize pool (on-ramp) is a separate flow handled by Privy's
 
 ---
 
+## Resend
+
+```
+RESEND_API_KEY=
+```
+Server-only. Get it from [resend.com](https://resend.com) → API Keys.
+
+```
+RESEND_FROM_EMAIL=
+```
+Server-only. The `From` header for outgoing mail, e.g. `Counterparti <notifications@counterparti.com>`. The domain must be verified in Resend (Domains → Add Domain → add the DNS records it gives you) or sends will fail.
+
+This is for transactional email only (registration confirmations, notifications) via `getResend()` in `src/lib/resend/client.ts`. It is **not** involved in login — Privy's email login sends its own one-time passcode, so there's no password/reset flow for this app to own.
+
+---
+
 ## Variable access summary
 
 | Variable | Browser | Server |
@@ -94,5 +110,7 @@ Buying USDC to fund a prize pool (on-ramp) is a separate flow handled by Privy's
 | `NEXT_PUBLIC_FACTORY_ADDRESS_BASE` | ✓ | ✓ |
 | `DEPLOYER_PRIVATE_KEY` | ✗ | ✓ |
 | `NEXT_PUBLIC_RAMP_API_KEY` | ✓ | ✓ |
+| `RESEND_API_KEY` | ✗ | ✓ |
+| `RESEND_FROM_EMAIL` | ✗ | ✓ |
 
 Variables prefixed `NEXT_PUBLIC_` are bundled into the client build. All others are server-only.
