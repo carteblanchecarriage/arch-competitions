@@ -65,7 +65,7 @@ export function Header() {
       <div
         className={cn(
           "overflow-hidden border-t border-gray-200 bg-white transition-all duration-200 md:hidden",
-          mobileOpen ? "max-h-60" : "max-h-0 border-t-0"
+          mobileOpen ? "max-h-112" : "max-h-0 border-t-0"
         )}
       >
         <nav className="flex flex-col px-4 py-2">
@@ -80,7 +80,7 @@ export function Header() {
             </Link>
           ))}
           <div className="mt-2 border-t border-gray-200 px-3 pt-3">
-            <AuthButton />
+            <AuthButton variant="inline" />
           </div>
         </nav>
       </div>

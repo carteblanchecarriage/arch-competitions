@@ -4,7 +4,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 
-export function UserMenu() {
+export function UserMenu({ variant = "dropdown" }: { variant?: "dropdown" | "inline" }) {
   const { user, logout } = usePrivy();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -17,13 +17,47 @@ export function UserMenu() {
         setOpen(false);
       }
     }
+    function handleTouchOutside(e: TouchEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleTouchOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("touchstart", handleTouchOutside);
+      };
     }
   }, [open]);
 
   const close = () => setOpen(false);
+
+  // Mobile nav renders its own menu inline (no absolute positioning) so the
+  // panel can't get clipped by the mobile nav's collapsible overflow-hidden container.
+  if (variant === "inline") {
+    return (
+      <div className="flex flex-col">
+        <span className="py-2 text-[11px] font-medium uppercase tracking-wider text-gray-400">
+          {email}
+        </span>
+        <Link
+          href="/account"
+          onClick={close}
+          className="py-3 text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-gray-500 hover:text-[#111]"
+        >
+          My Profile
+        </Link>
+        <button
+          onClick={() => { logout(); close(); }}
+          className="py-3 text-left text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-gray-500 hover:text-[#111]"
+        >
+          Sign Out
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative" ref={menuRef}>

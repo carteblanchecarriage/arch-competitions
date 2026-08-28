@@ -4,7 +4,7 @@ import { LoginButton } from "./LoginButton";
 import { UserMenu } from "./UserMenu";
 import { usePrivy } from "@privy-io/react-auth";
 
-export function AuthButton() {
+export function AuthButton({ variant = "dropdown" }: { variant?: "dropdown" | "inline" }) {
   const { ready, authenticated } = usePrivy();
 
   // Show login button immediately; swap to UserMenu once Privy confirms auth.
@@ -13,5 +13,5 @@ export function AuthButton() {
     return <LoginButton />;
   }
 
-  return <UserMenu />;
+  return <UserMenu variant={variant} />;
 }

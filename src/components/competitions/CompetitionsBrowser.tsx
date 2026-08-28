@@ -66,10 +66,10 @@ export function CompetitionsBrowser({ competitions }: CompetitionsBrowserProps) 
       </div>
 
       {/* Main layout */}
-      <div className="flex gap-8">
+      <div className="flex flex-col gap-8 lg:flex-row">
         <aside
           className={cn(
-            "w-72 flex-shrink-0",
+            "w-full shrink-0 lg:w-72",
             showFilters ? "block" : "hidden lg:block"
           )}
         >
