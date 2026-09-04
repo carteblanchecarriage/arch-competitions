@@ -39,6 +39,16 @@ export default function AboutPage() {
               description:
                 "Many competitions quietly claim broad rights over all submissions. Designers hand over months of work without realizing they've signed away their rights.",
             },
+            {
+              title: "Good organizers can't prove it",
+              description:
+                "A legitimate institution running a fair competition looks identical, from the outside, to a fee-farming scheme — there's no way to signal you're different. That costs you the highest-caliber submissions.",
+            },
+            {
+              title: "Running one well is hard",
+              description:
+                "Anonymous jury tracking, public Q&A, prize pool verification, payout proof — most organizers assemble this from email threads and PDFs, and it shows.",
+            },
           ].map((item, i) => (
             <div key={i} className=" border border-gray-200 p-5">
               <h3 className="font-semibold text-gray-900">{item.title}</h3>
@@ -71,7 +81,7 @@ export default function AboutPage() {
             {
               title: "Prize money is locked in escrow",
               description:
-                "Once funded, the prize pool cannot be withdrawn or clawed back by the organizer. The money stays for the competition — designers can trust it's real before they invest their time.",
+                "Once funded, the prize pool cannot be withdrawn or clawed back by the organizer. The money stays for the competition — designers can trust it's real before they invest their time, and organizers can't be accused of walking away with it, because they never could.",
             },
             {
               title: "Designers own their work",
@@ -81,7 +91,7 @@ export default function AboutPage() {
             {
               title: "Anonymous judging, enforced by the platform",
               description:
-                "Submitter identities are hidden from the jury until winners are announced — not just promised in the brief, but enforced at the database level. The organizer cannot see who submitted what until they hit announce. This follows the UIA Accord on Competitions and eliminates one of the most common sources of unfairness in the industry.",
+                "Submitter identities are hidden from the jury until winners are announced — not just promised in the brief, but enforced at the database level. The organizer cannot see who submitted what until they hit announce. This follows the UIA Accord on Competitions, eliminates one of the most common sources of unfairness in the industry, and protects organizers and jurors too — no one can accuse a decision of favoritism when it wasn't possible in the first place.",
             },
             {
               title: "5% on every distribution — always transparent",
@@ -92,6 +102,11 @@ export default function AboutPage() {
               title: "Designers are protected from inaction",
               description:
                 "After a competition closes, organizers and jurors have 30 days to select a winner. If that window passes with no decision, anyone can trigger an equal distribution of the full prize pool to all registered designers.",
+            },
+            {
+              title: "Organizers build a reputation that travels",
+              description:
+                "Every payout is on-chain and verifiable. A track record of funding real prizes and running fair judging becomes something you can point to — it attracts bigger pools and better talent next time, instead of starting from zero.",
             },
             {
               title: "Competitions are beginnings",
