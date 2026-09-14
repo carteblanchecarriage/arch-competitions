@@ -16,7 +16,7 @@ export function Footer() {
               to create. Always.
             </p>
             <a
-              href='https://discord.gg/4mbASWqr8'
+              href='https://discord.gg/aDehzu9U5B'
               target='_blank'
               rel='noopener noreferrer'
               aria-label='Join our Discord'
