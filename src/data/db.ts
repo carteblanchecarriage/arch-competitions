@@ -195,6 +195,7 @@ export const getAllCompetitions = cache(async (): Promise<Competition[]> => {
     .from("competitions")
     .select(COMPETITION_SELECT)
     .in("status", ["open", "judging", "announced"])
+    .eq("admin_removed", false)
     .order("submission_deadline", { ascending: true });
 
   if (error) throw new Error(`getAllCompetitions: ${error.message}`);
@@ -207,6 +208,7 @@ export const getCompetitionBySlug = cache(
       .from("competitions")
       .select(COMPETITION_SELECT)
       .eq("slug", slug)
+      .eq("admin_removed", false)
       .maybeSingle();
 
     if (error) throw new Error(`getCompetitionBySlug(${slug}): ${error.message}`);
@@ -219,7 +221,8 @@ export const getAllSlugs = cache(async (): Promise<string[]> => {
   const { data, error } = await getSupabase()
     .from("competitions")
     .select("slug")
-    .in("status", ["open", "judging", "announced"]);
+    .in("status", ["open", "judging", "announced"])
+    .eq("admin_removed", false);
   if (error) throw new Error(`getAllSlugs: ${error.message}`);
   return data.map((r) => r.slug);
 });

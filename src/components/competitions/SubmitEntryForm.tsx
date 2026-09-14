@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -30,9 +30,11 @@ function blankForm(): FormData {
 
 export function SubmitEntryForm({ competition }: { competition: Competition }) {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
-  const rawId = useId();
-  // useId returns ":r0:" style — strip colons for use in storage paths
-  const sessionId = rawId.replace(/:/g, "");
+  // Must be a real random ID, not React's useId() — useId() is deterministic
+  // by component position and can collide across different users' sessions,
+  // which combined with upsert:true on the signed upload URL would let one
+  // submitter's files silently overwrite another's.
+  const [sessionId] = useState(() => crypto.randomUUID());
 
   const [pageState, setPageState] = useState<PageState>({ kind: "loading" });
   const [form, setForm] = useState<FormData>(blankForm());

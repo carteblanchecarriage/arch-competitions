@@ -107,6 +107,8 @@ export function FundCompetitionPanel({
   const formattedAmount = amount ? `$${amount}` : "$0";
   const buttonLabel = (() => {
     switch (step) {
+      case "screening":
+        return "Checking…";
       case "switchingChain":
         return "Switching network…";
       case "approving":
@@ -179,6 +181,14 @@ export function FundCompetitionPanel({
       <Button onClick={fund} disabled={!canFund} className="w-full">
         {buttonLabel}
       </Button>
+
+      <p className="text-center text-[11px] text-gray-400">
+        By funding, you agree to our{" "}
+        <a href="/terms#risk" className="underline decoration-gray-300 hover:text-gray-600">
+          Terms
+        </a>
+        , including that contributions are made at your own risk.
+      </p>
 
       {isWrongNetwork && step !== "switchingChain" && (
         <div className="text-xs text-amber-700">

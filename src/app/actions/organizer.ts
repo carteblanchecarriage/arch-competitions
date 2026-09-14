@@ -160,12 +160,14 @@ export async function getCompetitionEntries(
         .select("*, submitter:submitters(slug, name, country, type)")
         .eq("competition_id", competitionId)
         .neq("status", "withdrawn")
+        .eq("admin_removed", false)
         .order("submitted_at", { ascending: false, nullsFirst: false })
     : await db
         .from("entries")
         .select("id, anonymous_id, title, description, project_url, files, status, submitted_at, created_at")
         .eq("competition_id", competitionId)
         .neq("status", "withdrawn")
+        .eq("admin_removed", false)
         .order("submitted_at", { ascending: false, nullsFirst: false });
 
   if (error) throw new Error(error.message);

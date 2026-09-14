@@ -14,11 +14,13 @@ import { baseSepolia } from "viem/chains";
 import { competitionEscrowAbi } from "@/lib/contracts/generated";
 import { USDC_BY_CHAIN, USDC_DECIMALS, isSupportedChain } from "@/lib/contracts/addresses";
 import { parseEscrowError } from "@/lib/contracts/errors";
+import { checkAddressSanctioned } from "@/app/actions/sanctions";
 
 /**
  * Step machine for the fund flow. Drives button label + disabled state.
  *
  * idle             → user hasn't submitted yet
+ * screening        → checking the wallet against OFAC's published address list
  * switchingChain   → asking wallet to switch network (covers wrong-network case)
  * approving        → approval tx sent, waiting for tx hash + confirmation
  * approveCooldown  → confirmation in; sleeping while allowance refetch propagates
@@ -28,6 +30,7 @@ import { parseEscrowError } from "@/lib/contracts/errors";
  */
 export type FundStep =
   | "idle"
+  | "screening"
   | "switchingChain"
   | "approving"
   | "approveCooldown"
@@ -74,6 +77,7 @@ export function useFundCompetition({ escrowAddress, amount }: UseFundCompetition
   const isWrongNetwork = !isSupportedChain(chainId);
   const needsApproval = (allowance ?? 0n) < amountWei;
   const isBusy =
+    step === "screening" ||
     step === "switchingChain" ||
     step === "approving" ||
     step === "approveCooldown" ||
@@ -85,6 +89,16 @@ export function useFundCompetition({ escrowAddress, amount }: UseFundCompetition
 
     setError(null);
     try {
+      setStep("screening");
+      const sanctioned = await checkAddressSanctioned(account);
+      if (sanctioned) {
+        setError(
+          "This wallet can't be used to fund a prize pool. If you believe this is a mistake, contact legal@counterparti.com."
+        );
+        setStep("error");
+        return;
+      }
+
       if (isWrongNetwork) {
         setStep("switchingChain");
         await switchChainAsync({ chainId: baseSepolia.id });

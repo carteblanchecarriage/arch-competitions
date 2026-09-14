@@ -70,14 +70,11 @@ Keep this server-only and never commit it.
 
 ---
 
-## Ramp Network
+## Off-ramp (withdraw to bank)
 
-```
-NEXT_PUBLIC_RAMP_API_KEY=
-```
-Powers the **off-ramp** "Withdraw to bank" button (`WithdrawButton.tsx`) — sells USDC for fiat, the reverse of funding a prize pool. Get a key from [dashboard.ramp.network](https://dashboard.ramp.network). There's no demo fallback: leave it blank and the button just shows "Bank withdrawal coming soon."
+No env var yet. `WithdrawButton.tsx` shows "Bank withdrawal coming soon" — this flow previously used Ramp Network and is moving to Fun (fun.xyz). Fun's checkout SDK (`@funkit/connect`) is in closed beta as of 2026-09; wiring it in requires requesting access from developers@fun.xyz first, and resolving a peer-dependency conflict (`@funkit/connect` requires `wagmi <=3.6.1`; this repo is on `^3.6.4`).
 
-Buying USDC to fund a prize pool (on-ramp) is a separate flow handled by Privy's `useFundWallet` in `FundCompetitionPanel.tsx` — it doesn't use this key.
+Buying USDC to fund a prize pool (on-ramp) is a separate flow handled by Privy's `useFundWallet` in `FundCompetitionPanel.tsx` — unaffected by this.
 
 ---
 
@@ -109,7 +106,6 @@ This is for transactional email only (registration confirmations, notifications)
 | `NEXT_PUBLIC_BASE_RPC_URL` | ✓ | ✓ |
 | `NEXT_PUBLIC_FACTORY_ADDRESS_BASE` | ✓ | ✓ |
 | `DEPLOYER_PRIVATE_KEY` | ✗ | ✓ |
-| `NEXT_PUBLIC_RAMP_API_KEY` | ✓ | ✓ |
 | `RESEND_API_KEY` | ✗ | ✓ |
 | `RESEND_FROM_EMAIL` | ✗ | ✓ |
 

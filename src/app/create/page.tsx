@@ -781,6 +781,14 @@ function StepReview({
             ? "This creates a draft and deploys the escrow. It stays hidden from designers until at least one contribution lands and you publish it from your dashboard."
             : "This creates a draft and deploys the escrow. It stays hidden from designers until you fund the prize pool and publish it from your dashboard."}
         </p>
+        <p className="mt-2 text-xs text-gray-400">
+          By creating a competition, you agree to our{" "}
+          <a href="/terms" className="underline decoration-gray-300 hover:text-gray-600">
+            Terms of Service
+          </a>
+          , including your responsibilities as an organizer and that funding a prize pool is
+          done at your own risk.
+        </p>
       </div>
     </div>
   );

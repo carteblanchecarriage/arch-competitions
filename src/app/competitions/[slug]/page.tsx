@@ -11,6 +11,7 @@ import { formatCurrency, formatDate, formatDeadline, daysUntil, cn } from "@/lib
 import type { Competition } from "@/data/types";
 import { FundCompetitionPanel } from "@/components/detail/FundCompetitionPanel";
 import { ShareButton } from "@/components/ui/ShareButton";
+import { ReportButton } from "@/components/ui/ReportButton";
 import { RegisterButton } from "@/components/competitions/RegisterButton";
 import { QASection } from "@/components/competitions/QASection";
 import { MyEntryPanel } from "@/components/competitions/MyEntryPanel";
@@ -237,6 +238,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
           <div className="mb-3 flex items-center gap-3">
             <StatusBadge status={c.status} />
             <ShareButton url={shareUrl} />
+            <ReportButton competitionId={c.id} />
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl">{c.title}</h1>
           <p className="mt-2 max-w-2xl text-gray-300">{c.shortDescription}</p>

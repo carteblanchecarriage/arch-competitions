@@ -9,9 +9,12 @@ const DEFAULT_BUCKET = "competition-files";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const MAX_BYTES = 50 * 1024 * 1024; // 50 MB — Supabase free-tier limit
 
+// Keep in sync with BUCKET_EXTENSIONS in src/app/actions/storage.ts.
+// No .svg — an uploaded SVG opened directly (not via <img>) can execute
+// embedded <script>, which would be a stored-XSS vector on our own domain.
 const ACCEPTED = [
   ".pdf", ".dwg", ".dxf", ".3dm", ".skp", ".rvt", ".ifc",
-  ".zip", ".png", ".jpg", ".jpeg", ".svg", ".xlsx", ".docx",
+  ".zip", ".png", ".jpg", ".jpeg", ".xlsx", ".docx",
 ].join(",");
 
 function formatBytes(bytes: number): string {

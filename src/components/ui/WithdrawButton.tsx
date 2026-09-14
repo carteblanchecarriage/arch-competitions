@@ -6,7 +6,11 @@ import { useWallets } from "@privy-io/react-auth";
 import { erc20Abi, formatUnits } from "viem";
 import { USDC_BY_CHAIN, USDC_DECIMALS } from "@/lib/contracts/addresses";
 
-const RAMP_API_KEY = process.env.NEXT_PUBLIC_RAMP_API_KEY ?? "";
+// Off-ramp (withdraw USDC to bank) is moving from Ramp Network to Fun
+// (fun.xyz) — see docs/environment-variables.md. Fun's checkout SDK
+// (@funkit/connect) is in closed beta as of 2026-09; wiring it in requires
+// requesting access from developers@fun.xyz first. Left disabled until then
+// rather than guessing at an unverified integration.
 
 export function WithdrawButton() {
   const { wallets } = useWallets();
@@ -34,21 +38,6 @@ export function WithdrawButton() {
     maximumFractionDigits: 2,
   })}`;
 
-  async function handleWithdraw() {
-    if (!address || !RAMP_API_KEY) return;
-    const { RampInstantSDK } = await import("@ramp-network/ramp-instant-sdk");
-    new RampInstantSDK({
-      hostApiKey: RAMP_API_KEY,
-      hostAppName: "Counterparti",
-      hostLogoUrl: `${window.location.origin}/logo.png`,
-      offrampAsset: "BASE_USDC",
-      userAddress: address,
-      swapAmount: balanceBigInt.toString(),
-      defaultFlow: "OFFRAMP" as const,
-      enabledFlows: ["OFFRAMP" as const],
-    }).show();
-  }
-
   const shortAddr = address
     ? `${address.slice(0, 6)}…${address.slice(-4)}`
     : null;
@@ -65,17 +54,7 @@ export function WithdrawButton() {
           </div>
           <div className="mt-0.5 text-[11px] text-gray-400">Available to withdraw</div>
         </div>
-        {RAMP_API_KEY ? (
-          <button
-            onClick={handleWithdraw}
-            disabled={!address}
-            className=" border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-gray-400 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Withdraw to bank
-          </button>
-        ) : (
-          <span className="text-xs text-gray-400">Bank withdrawal coming soon</span>
-        )}
+        <span className="text-xs text-gray-400">Bank withdrawal coming soon</span>
       </div>
 
       {/* Wallet address — subtle reference for the user, hidden by default */}

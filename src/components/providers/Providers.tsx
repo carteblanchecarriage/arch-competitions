@@ -35,6 +35,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
           accentColor: "#111827",
           showWalletLoginFirst: false,
         },
+        legal: {
+          termsAndConditionsUrl: "https://counterparti.com/terms",
+          privacyPolicyUrl: "https://counterparti.com/privacy",
+        },
         loginMethods: ["email", "wallet"],
         embeddedWallets: {
           ethereum: {

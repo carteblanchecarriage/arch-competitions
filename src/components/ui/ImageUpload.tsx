@@ -21,8 +21,11 @@ export function ImageUpload({ value, onChange, uploadSessionId }: ImageUploadPro
   const [error, setError] = useState<string | null>(null);
 
   async function handleFile(file: File) {
-    if (!file.type.startsWith("image/")) {
-      setError("Please select an image file.");
+    // Keep in sync with BUCKET_EXTENSIONS["competition-images"] in
+    // src/app/actions/storage.ts. No SVG — see comment there.
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!ext || !["png", "jpg", "jpeg", "webp"].includes(ext)) {
+      setError("Please select a PNG, JPG, or WebP image.");
       return;
     }
     setError(null);
@@ -98,7 +101,7 @@ export function ImageUpload({ value, onChange, uploadSessionId }: ImageUploadPro
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
